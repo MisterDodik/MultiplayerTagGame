@@ -14,17 +14,22 @@ type Client struct {
 	conn    *websocket.Conn
 	egress  chan []byte
 
-	lobby    string
-	username string
+	lobbyName string
+	username  string
+	id        string
+
+	lobby *GameServer
 }
 
-func NewClient(conn *websocket.Conn, manager *Manager) *Client {
+func NewClient(conn *websocket.Conn, manager *Manager, username, lobbyName, id string, lobby *GameServer) *Client {
 	return &Client{
-		manager:  manager,
-		conn:     conn,
-		egress:   make(chan []byte),
-		lobby:    "",
-		username: "",
+		manager:   manager,
+		conn:      conn,
+		egress:    make(chan []byte),
+		lobbyName: lobbyName,
+		username:  username,
+		id:        id,
+		lobby:     lobby,
 	}
 }
 

@@ -19,8 +19,8 @@ var upgrader = websocket.Upgrader{
 }
 
 type Manager struct {
-	clients ClientList
-
+	//clients ClientList
+	games  GameServerList
 	events map[string]EventHandler
 	otps   RetentionMap
 	sync.RWMutex
@@ -28,9 +28,10 @@ type Manager struct {
 
 func NewManager() *Manager {
 	m := &Manager{
-		clients: make(ClientList),
-		events:  make(map[string]EventHandler),
-		otps:    NewRetentionMap(),
+		// clients: make(ClientList),
+		games:  make(GameServerList),
+		events: make(map[string]EventHandler),
+		otps:   NewRetentionMap(),
 	}
 
 	m.initHandlers()
@@ -70,17 +71,19 @@ func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count := 0
-	for c := range m.clients {
-		if c.lobby == payload.Seed {
-			count++
+	if _, ok := m.games[payload.Seed]; ok { //otherwise the desired gameserver is empty (non existent)
+		count := 0
+		for c := range m.games[payload.Seed].clients {
+			if c.lobbyName == payload.Seed {
+				count++
+			}
 		}
-	}
 
-	if count >= 8 {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte("lobby full"))
-		return
+		if count >= 8 {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("lobby full"))
+			return
+		}
 	}
 
 	otp, err := m.otps.NewOTP(payload.Username, payload.Seed)
@@ -110,10 +113,10 @@ func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 }
 func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 	var userName string
-	var lobby string
+	var lobbyName string
 
 	otp := r.URL.Query().Get("otp")
-	if otp == "" || !m.otps.ValidateOTP(otp, &userName, &lobby) {
+	if otp == "" || !m.otps.ValidateOTP(otp, &userName, &lobbyName) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -125,16 +128,22 @@ func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("new connection")
 
-	client := NewClient(conn, m)
-	client.username = userName
-	client.lobby = lobby
+	var lobby *GameServer
+	val, ok := m.games[lobbyName]
+	if !ok {
+		lobby = m.NewGameServer(lobbyName)
+	} else {
+		lobby = val
+	}
 
-	m.addClient(client)
+	client := NewClient(conn, m, userName, lobbyName, otp, lobby)
+
+	m.addClient(lobbyName, client)
 
 	go client.ReadMessage()
 	go client.WriteMessage()
 
-	lbJson, _ := json.Marshal(lobby)
+	lbJson, _ := json.Marshal(lobbyName)
 
 	evt := Event{
 		Type:    JoinLobby,
@@ -145,11 +154,11 @@ func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *Manager) addClient(client *Client) {
+func (m *Manager) addClient(lobbyName string, client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.clients[client] = true
+	m.games[lobbyName].clients[client] = true
 
 	log.Println("new client")
 }
@@ -157,10 +166,14 @@ func (m *Manager) addClient(client *Client) {
 func (m *Manager) removeClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
-	if _, ok := m.clients[client]; ok {
 
+	if _, ok := m.games[client.lobbyName].clients[client]; ok {
+
+		if err := updateLobby(client, DepopulateLobby); err != nil {
+			log.Println(err)
+		}
 		client.conn.Close()
-		delete(m.clients, client)
+		delete(m.games[client.lobbyName].clients, client)
 
 		log.Println("client removed")
 	}

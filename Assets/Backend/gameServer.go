@@ -3,12 +3,13 @@ package main
 type GameServerList map[string]*GameServer
 
 type GameServer struct {
-	lobby string
 	clients ClientList
 }
 
-func NewGameServer() *GameServer {
-	return &GameServer{
-		players: make(ClientList),
+func (m *Manager) NewGameServer(lobbyName string) *GameServer {
+	gs := &GameServer{
+		clients: make(ClientList),
 	}
+	m.games[lobbyName] = gs
+	return gs
 }

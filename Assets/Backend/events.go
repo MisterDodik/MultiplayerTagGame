@@ -17,6 +17,7 @@ type Event struct {
 var (
 	JoinLobby          = "join_lobby"
 	PopulateLobby      = "populate_lobby"
+	DepopulateLobby    = "depopulate_lobby"
 	StartGame          = "start_game"
 	ChatroomMsg        = "chatroom_msg"
 	BroadcastToClients = "server_msg"
@@ -38,7 +39,7 @@ func JoinLobbyHandler(e Event, c *Client) error {
 		}
 	}
 
-	c.lobby = lobbyName
+	c.lobbyName = lobbyName
 
 	jsonMsg, err := json.Marshal(lobbyName)
 	if err != nil {
@@ -51,32 +52,36 @@ func JoinLobbyHandler(e Event, c *Client) error {
 	}
 	responseEvt.broadcastMessageToSingleClient(c)
 
-	if err := populateLobby(c); err != nil {
+	if err := updateLobby(c, PopulateLobby); err != nil {
 		return err
 	}
 	return nil
 }
 
-func populateLobby(c *Client) error {
-	type LobbyPlayer struct {
-		Username string `json:"username"`
-	}
-
-	data := LobbyPlayer{
-		Username: c.username,
-	}
-	jsonData, err := json.Marshal(data)
-
-	if err != nil {
-		log.Println("error parsing populate lobby data")
-		return err
-	}
-
+func updateLobby(c *Client, action string) error {
 	evt := Event{
-		Type:    PopulateLobby,
-		Payload: jsonData,
+		Type: action,
+		Payload: json.RawMessage(
+			[]byte(fmt.Sprintf(`{"username":"%s","id":"%s"}`, c.username, c.id)),
+		),
 	}
 	evt.broadcastMessageToAllClients(c)
+
+	if action == DepopulateLobby {
+		return nil
+	}
+	for other := range c.lobby.clients {
+		if other == c {
+			continue
+		}
+		evt := Event{
+			Type: action,
+			Payload: json.RawMessage(
+				[]byte(fmt.Sprintf(`{"username":"%s","id":"%s"}`, other.username, other.id)),
+			),
+		}
+		evt.broadcastMessageToSingleClient(c)
+	}
 
 	return nil
 }
@@ -129,8 +134,8 @@ func (e Event) broadcastMessageToAllClients(c *Client) {
 	}
 
 	log.Println(string(sendEventJSON))
-	for client := range c.manager.clients {
-		if client.lobby == c.lobby {
+	for client := range c.lobby.clients {
+		if client.lobbyName == c.lobbyName {
 			client.egress <- sendEventJSON
 		}
 	}

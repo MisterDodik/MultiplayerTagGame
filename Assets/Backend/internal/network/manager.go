@@ -1,4 +1,4 @@
-package main
+package network
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/MisterDodik/MultiplayerGame/internal/events"
 	"github.com/gorilla/websocket"
 )
 
@@ -20,33 +21,33 @@ var upgrader = websocket.Upgrader{
 
 type Manager struct {
 	//clients ClientList
-	games  GameServerList
-	events map[string]EventHandler
-	otps   RetentionMap
+	Games  GameServerList
+	Events map[string]func(events.Event, *Client) error
+	Otps   RetentionMap
 	sync.RWMutex
 }
 
 func NewManager() *Manager {
 	m := &Manager{
 		// clients: make(ClientList),
-		games:  make(GameServerList),
-		events: make(map[string]EventHandler),
-		otps:   NewRetentionMap(),
+		Games:  make(GameServerList),
+		Events: make(map[string]func(events.Event, *Client) error),
+		Otps:   NewRetentionMap(),
 	}
 
-	m.initHandlers()
+	// m.initHandlers()
 
 	return m
 }
 
-func (m *Manager) initHandlers() {
-	m.events[JoinLobby] = JoinLobbyHandler
-	m.events[StartGame] = StartGameHandler
-	m.events[ChatroomMsg] = ChatMsgFromClientHandler
-}
+// func (m *Manager) initHandlers() {
+// 	m.Events[events.JoinLobby] = handlers.JoinLobbyHandler
+// 	m.Events[events.StartGame] = handlers.StartGameHandler
+// 	m.Events[events.ChatroomMsg] = handlers.ChatMsgFromClientHandler
+// }
 
-func (m *Manager) parseEvent(e Event, c *Client) error {
-	event, ok := m.events[e.Type]
+func (m *Manager) parseEvent(e events.Event, c *Client) error {
+	event, ok := m.Events[e.Type]
 	if !ok {
 		return errors.New("unknown event type")
 	}
@@ -62,7 +63,7 @@ type LoginPayload struct {
 	Username string `json:"username"`
 }
 
-func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) Login(w http.ResponseWriter, r *http.Request) {
 	var payload LoginPayload
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -71,10 +72,10 @@ func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := m.games[payload.Seed]; ok { //otherwise the desired gameserver is empty (non existent)
+	if _, ok := m.Games[payload.Seed]; ok { //otherwise the desired gameserver is empty (non existent)
 		count := 0
-		for c := range m.games[payload.Seed].clients {
-			if c.lobbyName == payload.Seed {
+		for c := range m.Games[payload.Seed].Clients {
+			if c.LobbyName == payload.Seed {
 				count++
 			}
 		}
@@ -86,13 +87,13 @@ func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	otp, err := m.otps.NewOTP(payload.Username, payload.Seed)
+	otp, err := m.Otps.NewOTP(payload.Username, payload.Seed)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	m.otps[otp.key] = *otp
+	m.Otps[otp.key] = *otp
 
 	type otpResponse struct {
 		OTP string `json:"otp"`
@@ -111,12 +112,12 @@ func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }
-func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	var userName string
 	var lobbyName string
 
 	otp := r.URL.Query().Get("otp")
-	if otp == "" || !m.otps.ValidateOTP(otp, &userName, &lobbyName) {
+	if otp == "" || !m.Otps.ValidateOTP(otp, &userName, &lobbyName) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -129,7 +130,7 @@ func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 	log.Println("new connection")
 
 	var lobby *GameServer
-	val, ok := m.games[lobbyName]
+	val, ok := m.Games[lobbyName]
 	if !ok {
 		lobby = m.NewGameServer(lobbyName)
 	} else {
@@ -145,8 +146,8 @@ func (m *Manager) serveWS(w http.ResponseWriter, r *http.Request) {
 
 	lbJson, _ := json.Marshal(lobbyName)
 
-	evt := Event{
-		Type:    JoinLobby,
+	evt := events.Event{
+		Type:    events.JoinLobby,
 		Payload: json.RawMessage(lbJson),
 	}
 	if err := m.parseEvent(evt, client); err != nil {
@@ -158,7 +159,7 @@ func (m *Manager) addClient(lobbyName string, client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.games[lobbyName].clients[client] = true
+	m.Games[lobbyName].Clients[client] = true
 
 	log.Println("new client")
 }
@@ -167,13 +168,13 @@ func (m *Manager) removeClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
-	if _, ok := m.games[client.lobbyName].clients[client]; ok {
+	if _, ok := m.Games[client.LobbyName].Clients[client]; ok {
 
-		if err := updateLobby(client, DepopulateLobby); err != nil {
+		if err := m.parseEvent(events.Event{Type: events.DepopulateLobby, Payload: json.RawMessage{}}, client); err != nil {
 			log.Println(err)
 		}
-		client.conn.Close()
-		delete(m.games[client.lobbyName].clients, client)
+		client.Conn.Close()
+		delete(m.Games[client.LobbyName].Clients, client)
 
 		log.Println("client removed")
 	}

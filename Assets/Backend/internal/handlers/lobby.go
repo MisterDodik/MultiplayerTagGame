@@ -15,7 +15,6 @@ func JoinLobbyHandler(e events.Event, c *network.Client) error {
 	if err != nil {
 		return err
 	}
-
 	if len(lobbyName) < 1 {
 		return fmt.Errorf("lobby name too short")
 	}
@@ -73,6 +72,5 @@ func UpdateLobby(c *network.Client, action string) error {
 		}
 		network.BroadcastMessageToSingleClient(c, evt)
 	}
-
 	return nil
 }

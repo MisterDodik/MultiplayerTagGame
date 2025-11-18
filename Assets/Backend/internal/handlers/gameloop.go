@@ -14,11 +14,13 @@ type PositionUpdatePayload struct {
 }
 
 func UpdatePositionHandler(e events.Event, c *network.Client) error {
+	if !c.GameStarted {
+		return nil
+	}
 	var payload PositionUpdatePayload
 	if err := json.Unmarshal(e.Payload, &payload); err != nil {
 		return err
 	}
-
 	calculate_pos(c, payload.InputX, payload.InputY)
 	return nil
 }

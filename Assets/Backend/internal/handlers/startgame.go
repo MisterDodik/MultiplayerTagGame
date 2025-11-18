@@ -9,12 +9,13 @@ import (
 )
 
 func StartGameHandler(e events.Event, c *network.Client) error {
-	log.Println("game started")
 
 	if c.Lobby == nil {
 		return errors.New("client is not in a lobby")
 	}
-	c.Lobby.StartGame(c)
+	c.GameStarted = true
+	log.Println("game started")
+	go c.Lobby.StartGame(c)
 
 	network.BroadcastMessageToAllClients(c, &e) //sends an already existing start_game event to everyone
 	return nil

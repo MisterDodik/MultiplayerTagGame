@@ -1,7 +1,11 @@
 package network
 
 import (
+	"encoding/json"
+	"log"
 	"time"
+
+	"github.com/MisterDodik/MultiplayerGame/internal/events"
 )
 
 type GameServerList map[string]*GameServer
@@ -18,22 +22,23 @@ func (m *Manager) NewGameServer(lobbyName string) *GameServer {
 	return gs
 }
 
-func (gs *GameServer) StartGame() {
-	ticker := time.NewTicker(gameTick)
+func (gs *GameServer) StartGame(c *Client) {
+	ticker := time.NewTicker(gameTickRate)
 	defer ticker.Stop()
 
 	go func() {
-		for range ticker.C { // <- stalno čeka tick i izvršava update
-			// Ovdje ide tvoja logika:
-			// npr. update player positions, collision, broadcast...
-
+		for range ticker.C {
+			if err := gs.updatePlayerPositions(c); err != nil {
+				log.Printf("error sending position update: %v", err)
+			}
 		}
 	}()
 
 }
 
 /*
-	client salje event u formatu:
+client salje event u formatu:
+
 	{
 		type: updatePos
 		payload: {
@@ -41,11 +46,10 @@ func (gs *GameServer) StartGame() {
 				}
 	}
 
-	onda se ovdje pozove funkcija koja for loopom prodje kroz sve igrace u lobiju
-	calculate_pos(event.payload.input)
+onda se ovdje pozove funkcija koja for loopom prodje kroz sve igrace u lobiju
+calculate_pos(event.payload.input)
 
-	broadcasttoeveryone(client.newpos)
-
+broadcasttoeveryone(client.newpos)
 
 	func calculate_pos(input vector2){
 		newPosX = client.currentX + input.x * speed
@@ -67,6 +71,34 @@ func (gs *GameServer) StartGame() {
 		return (newPosX, newPosY)
 	}
 */
+type PositionUpdateServer struct {
+	Id   string  `json:"id"`
+	PosX float64 `json:"x"`
+	PosY float64 `json:"y"`
+}
+type PlayerPositions []PositionUpdateServer
 
-func (c *Client) UpdatePlayer() {
+func (gs *GameServer) updatePlayerPositions(c *Client) error {
+	players := make(PlayerPositions, 0, len(gs.Clients))
+	for player := range gs.Clients {
+		players = append(players, PositionUpdateServer{
+			Id:   player.Id,
+			PosX: player.ClientGameData.PosX,
+			PosY: player.ClientGameData.PosY,
+		})
+	}
+
+	jsonData, err := json.Marshal(players)
+	if err != nil {
+		return err
+	}
+	evt := events.Event{
+		Type:    events.UpdatePositionFromServer,
+		Payload: jsonData,
+	}
+	log.Println(string(jsonData))
+
+	BroadcastMessageToAllClients(c, &evt)
+
+	return nil
 }

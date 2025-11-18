@@ -32,7 +32,13 @@ type ClientGameData struct {
 }
 
 func NewClientGameData() *ClientGameData {
-	return &ClientGameData{}
+	return &ClientGameData{
+		PosX:      0,
+		PosY:      0,
+		RotationZ: 0,
+		Radius:    .5,
+		Speed:     10,
+	}
 }
 
 func NewClient(conn *websocket.Conn, manager *Manager, username, lobbyName, id string, lobby *GameServer) *Client {

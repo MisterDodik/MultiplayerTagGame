@@ -15,7 +15,6 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private TMP_InputField usernameInputTMPro;
     [SerializeField] private TextMeshProUGUI lobbyNameTMPro;
 
-    private int testCount = 0;
     private void Start()
     {
         seedPanel.SetActive(true);
@@ -50,25 +49,26 @@ public class LobbyManager : MonoBehaviour
 
         EventSystem.Emit("connect", result);
     }
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            test("user"+testCount.ToString());
-            testCount++;
-        }
-    }
+    //private int testCount = 0;
+    //private void Update()
+    //{
+    //    if (Input.GetKeyDown(KeyCode.Space))
+    //    {
+    //        test("user"+testCount.ToString());
+    //        testCount++;
+    //    }
+    //}
 
-    private async void test(string username)
-    {
-        var result = await HttpConnection.PostRequest<LoginResponse>("localhost:8080/login", new
-        {
-            seed = "123",
-            username = username,
-        });
+    //private async void test(string username)
+    //{
+    //    var result = await HttpConnection.PostRequest<LoginResponse>("localhost:8080/login", new
+    //    {
+    //        seed = "123",
+    //        username = username,
+    //    });
 
-        EventSystem.Emit("connect", result);
-    }
+    //    EventSystem.Emit("connect", result);
+    //}
     private void LobbyJoinedHandler(object data)
     {
         print("connected to lobby");

@@ -5,12 +5,18 @@ using UnityEngine;
 
 public static class MessageType
 {
+    public const string BroadcastToClients = "server_msg";
+    public const string SendNetworkMessage = "SendNetworkMessage";
+
     public const string JoinLobby = "join_lobby";
     public const string PopulateLobby = "populate_lobby";
     public const string DepopulateLobby = "depopulate_lobby";
-    public const string StartGame = "start_game";
+
     public const string ChatroomMsg = "chatroom_msg";
-    public const string BroadcastToClients = "server_msg";
+
+    public const string StartGame = "start_game";
+    public const string UpdatePositionFromClient = "update_position_from_client";
+    public const string UpdatePositionFromServer = "update_position_from_server";
 
 }
 
@@ -18,7 +24,7 @@ public static class MessageType
 public class NetworkMessage
 {
     public string type;
-    public string payload;
+    public object payload;
 }
 
 

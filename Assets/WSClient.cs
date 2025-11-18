@@ -34,32 +34,33 @@ public class WSClient : MonoBehaviour
     private void OnMessageReceived(object sender, MessageEventArgs e)
     {
         var (type, payload) = JsonParser.Parse(e.Data);
-        print(type);
+        if(type != MessageType.UpdatePositionFromServer)
+            print("received payload with type: " + type);
         EventSystem.Emit(type, payload);
     }
 
     private void SendMessage(NetworkMessage msg)
     {
-        string json = JsonUtility.ToJson(msg);
+        string json = JsonConvert.SerializeObject(msg);
         ws.Send(json);
     }
 
 
     private void OnSendNetworkMessage(object data)
-    {
+    {   
         var msg = data as NetworkMessage;
         if (msg != null)
             SendMessage(msg);
     }
     private void OnEnable()
     {
-        EventSystem.Subscribe("SendNetworkMessage", OnSendNetworkMessage);
+        EventSystem.Subscribe(MessageType.SendNetworkMessage, OnSendNetworkMessage);
         EventSystem.Subscribe("connect", Connect);
     }
 
     private void OnDisable()
     {
-        EventSystem.Unsubscribe("SendNetworkMessage", OnSendNetworkMessage);
+        EventSystem.Unsubscribe(MessageType.SendNetworkMessage, OnSendNetworkMessage);
         EventSystem.Unsubscribe("connect", Connect);
     }
 

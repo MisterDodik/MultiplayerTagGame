@@ -15,6 +15,7 @@ public class PlayerLobby : MonoBehaviour
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private Vector2 positionOrigin = new Vector2(0, 2);
     [HideInInspector] public Dictionary<string, Player> players = new();
+    private PlayerController realPlayer;
 
 
     private int playerCount = 0;
@@ -31,6 +32,12 @@ public class PlayerLobby : MonoBehaviour
             playerNameTMPro = player.GetComponentInChildren<TextMeshPro>();
 
             playerNameTMPro.text = data.username;
+
+            if (playerCount == 0)
+            {
+                realPlayer = player.AddComponent<PlayerController>();
+            }
+
 
             player.transform.localPosition = positionOrigin + new Vector2(playerCount%4 * 1.5f, - playerCount/4 * 2);
             playerCount++;
@@ -51,17 +58,16 @@ public class PlayerLobby : MonoBehaviour
             Player player = players[data.id];
             if (player != null)
             {
-                Destroy(player.gameObject);
                 playerCount--;
                 players.Remove(data.id);
+                Destroy(player.gameObject);
+
+                //if (playerCount == 1)
+                //{
+                //    realPlayer.EndGame();
+                //    print("kraj igre, dodaj neki ui ili sta vec, vrati u lobby...");
+                //}
             }
-            //Player player = players.FirstOrDefault(x => x.Id == data.id);
-            //if (player != null)
-            //{
-            //    Destroy(player.gameObject);
-            //    playerCount--;
-            //    players.Remove(player);
-            //}
         });
     }
 
@@ -83,8 +89,8 @@ public class PlayerLobby : MonoBehaviour
             {
                 p.SpawnInGame();
             }
+            realPlayer.StartGame(this);
         });
-
     }
     private void OnEnable()
     {

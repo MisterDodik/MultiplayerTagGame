@@ -35,7 +35,7 @@ type ClientGameData struct {
 func (c *Client) NewClientGameData() *ClientGameData {
 	data := &ClientGameData{
 		RotationZ: 0,
-		Radius:    .05,
+		Radius:    .12,
 		Speed:     .05,
 	}
 
@@ -76,13 +76,14 @@ func (c *Client) ReadMessage() {
 			break
 		}
 
-		log.Println("payload je: ", string(payload))
 		var evt events.Event
 		if err := json.Unmarshal(payload, &evt); err != nil {
 			log.Printf("error unmarshaling payload sent by client: %v", err)
 			continue
 		}
-
+		if evt.Type != events.UpdatePositionFromClient {
+			log.Println("payload je: ", string(payload))
+		}
 		_ = c.Manager.parseEvent(evt, c)
 	}
 }

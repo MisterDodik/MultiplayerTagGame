@@ -8,11 +8,14 @@ using System.Linq;
 public class PlayerLobby : MonoBehaviour
 {
     [SerializeField] private Transform lobbyPlayerParent;
+    [SerializeField] private GameObject lobbyUI;
+    [SerializeField] private Transform gameElements;
 
     private TextMeshPro playerNameTMPro;
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private Vector2 positionOrigin = new Vector2(0, 2);
-    private List<Player> players = new();
+    [HideInInspector] public Dictionary<string, Player> players = new();
+
 
     private int playerCount = 0;
 
@@ -20,24 +23,21 @@ public class PlayerLobby : MonoBehaviour
     {
         LobbyPlayer data = playerInfo as LobbyPlayer;
         if (data == null)
-        {
-            Debug.LogError("DATA JE NULL – payload NIJE LobbyPlayer!");
-            Debug.Log("playerInfo type = " + playerInfo.GetType());
             return;
-        }
+        
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
             GameObject player = Instantiate(playerPrefab, lobbyPlayerParent);
+            player.transform.localScale = new Vector3(0.75f, 1f, 1);
             playerNameTMPro = player.GetComponentInChildren<TextMeshPro>();
 
             playerNameTMPro.text = data.username;
 
-            int rem = playerCount % 4;
             player.transform.localPosition = positionOrigin + new Vector2(playerCount%4 * 1.5f, - playerCount/4 * 2);
             playerCount++;
 
             Player p = player.GetComponent<Player>();
-            p.InitPlayer(data.username, data.id);
-            players.Add(p);
+            p.InitPlayer(data.username, data.id, playerCount > 1, this);
+            players[data.id] = p;
         });
     }
 
@@ -48,24 +48,55 @@ public class PlayerLobby : MonoBehaviour
             return;    
 
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
-            Player player = players.FirstOrDefault(x => x.Id == data.id);
+            Player player = players[data.id];
             if (player != null)
             {
                 Destroy(player.gameObject);
                 playerCount--;
-                players.Remove(player);
+                players.Remove(data.id);
+            }
+            //Player player = players.FirstOrDefault(x => x.Id == data.id);
+            //if (player != null)
+            //{
+            //    Destroy(player.gameObject);
+            //    playerCount--;
+            //    players.Remove(player);
+            //}
+        });
+    }
+
+
+    public void OnClickStartGame()
+    {
+        EventSystem.Emit(MessageType.SendNetworkMessage, 
+            new NetworkMessage 
+            {
+                type = MessageType.StartGame,
+                payload = ""
+            });
+    }
+    private void GameStarted(object o)
+    {
+        UnityMainThreadDispatcher.Instance().Enqueue(() => {
+            lobbyUI.SetActive(false);
+            foreach (Player p in players.Values)
+            {
+                p.SpawnInGame();
             }
         });
+
     }
     private void OnEnable()
     {
         EventSystem.Subscribe(MessageType.PopulateLobby, NewInLobby); 
         EventSystem.Subscribe(MessageType.DepopulateLobby, PlayerLeftLobby);
+        EventSystem.Subscribe(MessageType.StartGame, GameStarted);
     }
     private void OnDisable()
     {
         EventSystem.Unsubscribe(MessageType.PopulateLobby, NewInLobby);
         EventSystem.Unsubscribe(MessageType.DepopulateLobby, PlayerLeftLobby);
+        EventSystem.Unsubscribe(MessageType.StartGame, GameStarted);
     }
 }
 

@@ -43,7 +43,7 @@ public class PlayerLobby : MonoBehaviour
             playerCount++;
 
             Player p = player.GetComponent<Player>();
-            p.InitPlayer(data.username, data.id, playerCount > 1, this);
+            p.InitPlayer(data.username, data.id, playerCount > 1, this, data.colorHex);
             players[data.id] = p;
         });
     }
@@ -112,4 +112,5 @@ public class LobbyPlayer
 {
     public string username;
     public string id;
+	public string colorHex;
 }

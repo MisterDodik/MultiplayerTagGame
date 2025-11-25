@@ -44,7 +44,7 @@ public class LobbyManager : MonoBehaviour
         var result = await HttpConnection.PostRequest<LoginResponse>("localhost:8080/login", new 
         {
             seed = seedInput,
-            username = usernameInput,
+            username = usernameInput,	
         });
 
         EventSystem.Emit("connect", result);

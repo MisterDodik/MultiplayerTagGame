@@ -12,11 +12,18 @@ public class Player : MonoBehaviour
 
     private Vector2 targetPosition;
     //private bool isOtherPlayer = false;
-    public void InitPlayer(string username, string id, bool _isOtherPlayer, PlayerLobby _playerManager)
+    public void InitPlayer(string username, string id, bool _isOtherPlayer, PlayerLobby _playerManager, string colorHex)
     {
         gameStarted = false;
         Username = username;
         Id = id;
+
+	    Color newColor;
+	    if (ColorUtility.TryParseHtmlString(colorHex, out newColor))
+	    {
+		    GetComponent<SpriteRenderer>().color = newColor;
+	    }
+	
         //playerManager = _playerManager;
        // isOtherPlayer = _isOtherPlayer;
     }

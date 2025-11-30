@@ -37,7 +37,7 @@ func (c *Client) NewClientGameData() *ClientGameData {
 	data := &ClientGameData{
 		RotationZ: 0,
 		Radius:    .12,
-		Speed:     .05,
+		Speed:     .03,
 	}
 
 	data.PosX = float64(startPositionOriginX) + float64(len(c.Lobby.Clients)%4)*0.5

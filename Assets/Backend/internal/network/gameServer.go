@@ -34,8 +34,24 @@ func (gs *GameServer) StartGame(c *Client) {
 			log.Printf("error sending position update: %v", err)
 		}
 
-		if len(gs.Clients) == 0 {
-			gs.IsStarted = false
+		if len(gs.Clients) == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+			defer func() {
+				gs.IsStarted = false
+			}()
+
+			var c *Client
+			for key := range gs.Clients { //this retrieves the first ie the only client left in the lobby
+				c = key
+				break
+			}
+			if c == nil {
+				return
+			}
+			evt := events.Event{
+				Type:    events.EndGame,
+				Payload: json.RawMessage{},
+			}
+			BroadcastMessageToSingleClient(c, &evt)
 			return
 		}
 	}

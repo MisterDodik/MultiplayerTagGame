@@ -4,7 +4,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
-public class Player : MonoBehaviour
+public class PlayerGeneral : MonoBehaviour
 {
     [SerializeField] private SpriteRenderer playerModel;
 
@@ -50,9 +50,9 @@ public class Player : MonoBehaviour
             Time.deltaTime * 10f
         );
 
-        Vector2 direction = (targetPosition - (Vector2)transform.localPosition).normalized;
-        Quaternion targetRotation = Quaternion.LookRotation(Vector3.forward, direction);
-        transform.localRotation = Quaternion.Lerp(transform.localRotation, targetRotation, Time.deltaTime * rotationSpeed);
+        //Vector2 direction = (targetPosition - (Vector2)transform.localPosition).normalized;
+        //Quaternion targetRotation = Quaternion.LookRotation(Vector3.forward, direction);
+        //transform.localRotation = Quaternion.Lerp(transform.localRotation, targetRotation, Time.deltaTime * rotationSpeed);
        // transform.localRotation = Quaternion.Euler(0, 0, targetRotation.eulerAngles.z);
     }
     public void SetTargetPosition(Vector2 pos)

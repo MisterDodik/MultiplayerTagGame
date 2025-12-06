@@ -14,8 +14,8 @@ public class PlayerLobby : MonoBehaviour
     private TextMeshPro playerNameTMPro;
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private Vector2 positionOrigin = new Vector2(0, 2);
-    [HideInInspector] public Dictionary<string, Player> players = new();
-    private PlayerController realPlayer;
+    [HideInInspector] public Dictionary<string, PlayerGeneral> players = new();
+    private OwnerPlayerInput realPlayer;
 
 
     private int playerCount = 0;
@@ -35,14 +35,14 @@ public class PlayerLobby : MonoBehaviour
 
             if (playerCount == 0)
             {
-                realPlayer = player.AddComponent<PlayerController>();
+                realPlayer = player.AddComponent<OwnerPlayerInput>();
             }
 
 
             player.transform.localPosition = positionOrigin + new Vector2(playerCount%4 * 1.5f, - playerCount/4 * 2);
             playerCount++;
 
-            Player p = player.GetComponent<Player>();
+            PlayerGeneral p = player.GetComponent<PlayerGeneral>();
             p.InitPlayer(data.username, data.id, playerCount > 1, this, data.colorHex);
             players[data.id] = p;
         });
@@ -55,7 +55,7 @@ public class PlayerLobby : MonoBehaviour
             return;    
 
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
-            Player player = players[data.id];
+            PlayerGeneral player = players[data.id];
             if (player != null)
             {
                 playerCount--;
@@ -85,7 +85,7 @@ public class PlayerLobby : MonoBehaviour
     {
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
             lobbyUI.SetActive(false);
-            foreach (Player p in players.Values)
+            foreach (PlayerGeneral p in players.Values)
             {
                 p.SpawnInGame();
             }

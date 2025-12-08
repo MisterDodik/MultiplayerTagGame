@@ -1,3 +1,4 @@
+using PimDeWitte.UnityMainThreadDispatcher;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -33,12 +34,18 @@ public class ObstacleManager : MonoBehaviour
     }
     public void SpawnObstacle(object data)
     {
-        Obstacle obstacleData = data as Obstacle;
-        GameObject obstacle = GetObstacle();
+        var obstacleInfoList = data as List<Obstacle>;
+        UnityMainThreadDispatcher.Instance().Enqueue(() =>{
+            foreach (Obstacle item in obstacleInfoList)
+            {
+                GameObject obstacle = GetObstacle();
 
-        float scale = obstacleData.cellSize / obstacle.GetComponent<SpriteRenderer>().sprite.bounds.size.x;
-        obstacle.transform.localScale = new Vector3(scale, scale, 1);
-        obstacle.transform.localPosition = new Vector2(obstacleData.posX, obstacleData.posY);
+                float scale = item.cellSize / obstacle.GetComponent<SpriteRenderer>().sprite.bounds.size.x;
+                obstacle.transform.localScale = new Vector3(scale, scale, 1);
+                obstacle.transform.localPosition = new Vector2(item.posX, item.posY);
+            }
+        });
+
     }
 
 

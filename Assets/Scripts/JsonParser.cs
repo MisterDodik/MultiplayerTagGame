@@ -31,6 +31,8 @@ public static class JsonParser
                 return (type, payloadToken.ToObject<LobbyPlayer>());
             case MessageType.UpdatePositionFromServer:
                 return (type, JsonConvert.DeserializeObject<List<PositionUpdateServer>>(payloadToken.ToString()));
+            case MessageType.SpawnObstacle:
+                return (type, JsonConvert.DeserializeObject<List<Obstacle>>(payloadToken.ToString()));
             default:
                 return (type, payloadToken.ToString());
         }

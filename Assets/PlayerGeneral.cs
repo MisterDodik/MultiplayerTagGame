@@ -35,7 +35,7 @@ public class PlayerGeneral : MonoBehaviour
     }
     public void SpawnInGame()
     {
-        transform.localScale = new Vector3(0.25f, 0.25f, 1);
+        transform.localScale = new Vector3(0.3f, 0.3f, 1);
         gameStarted = true;
     }
 

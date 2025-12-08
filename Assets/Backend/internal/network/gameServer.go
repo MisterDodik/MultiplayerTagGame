@@ -74,9 +74,10 @@ func (gs *GameServer) initObstacles(obstacleCoverage int, c *Client) error {
 	}
 	for val := range used {
 		gs.Grid[val.X][val.Y].HasObstacle = true
+		log.Println(val.X, val.Y)
 	}
 
-	obstacles := make(Obstacles, 0, len(gs.Clients))
+	obstacles := make(Obstacles, 0, len(used))
 	for i := 0; i < gs.GridCols; i++ {
 		for j := 0; j < gs.GridRows; j++ {
 			if !gs.Grid[i][j].HasObstacle {
@@ -133,6 +134,7 @@ func (gs *GameServer) initializators(c *Client) {
 
 			if !gs.Grid[i][j].HasObstacle {
 				client.SetPosition(gs.Grid[i][j].CenterX, gs.Grid[i][j].CenterY)
+				log.Println("OVO JE POCETNA POZICIJA:", i, j)
 				_ = gs.updatePlayerPositions(c)
 				break
 			}

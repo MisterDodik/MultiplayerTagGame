@@ -148,6 +148,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	val, ok := m.Games[lobbyName]
 	if !ok {
 		lobby = m.NewGameServer(lobbyName, 60, 30, .5, -15, -7.5)
+		//lobby = m.NewGameServer(lobbyName, 6, 3, .5, -15, -7.5)
 	} else {
 		lobby = val
 	}

@@ -15,6 +15,7 @@ public static class MessageType
     public const string ChatroomMsg = "chatroom_msg";
 
     public const string StartGame = "start_game";
+    public const string UpdateClientColor = "update_color_from_server";
     public const string UpdatePositionFromClient = "update_position_from_client";
     public const string UpdateRotationFromClient = "update_rotation_from_client";
 

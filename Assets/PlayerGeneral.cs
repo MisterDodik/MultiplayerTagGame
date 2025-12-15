@@ -1,3 +1,4 @@
+using PimDeWitte.UnityMainThreadDispatcher;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +11,7 @@ public class PlayerGeneral : MonoBehaviour
 
     private string Username { get; set; }
     public string Id {get; private set; }
+    public bool IsHunter {get; private set; }
 
     private bool gameStarted = false;
 
@@ -60,7 +62,14 @@ public class PlayerGeneral : MonoBehaviour
         targetPosition = pos;
     }
 
-   
-
+    public void UpdateClientColor(Color c, bool _isHunter)
+    {
+        UnityMainThreadDispatcher.Instance().Enqueue(() => {
+        
+            playerModel.color = c;
+            IsHunter = _isHunter;
+            print("ishunter state updated to: " + IsHunter);
+        });
+    }
 }
 

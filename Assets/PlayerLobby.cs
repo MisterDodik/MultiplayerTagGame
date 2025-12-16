@@ -38,7 +38,10 @@ public class PlayerLobby : MonoBehaviour
             {
                 realPlayer = player.AddComponent<OwnerPlayerInput>();
             }
-
+            else
+            {
+                player.AddComponent<EnemyPlayer>();
+            }
 
             player.transform.localPosition = positionOrigin + new Vector2(playerCount%4 * 1.5f, - playerCount/4 * 2);
             playerCount++;
@@ -68,6 +71,7 @@ public class PlayerLobby : MonoBehaviour
                 //    realPlayer.EndGame();
                 //    print("kraj igre, dodaj neki ui ili sta vec, vrati u lobby...");
                 //}
+                //mzd ce trebati ovdje svim igracima staviti gamestarted na false al aj vidjecu
             }
         });
     }

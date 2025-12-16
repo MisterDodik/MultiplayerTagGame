@@ -5,10 +5,9 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
-public class PlayerGeneral : MonoBehaviour
+public abstract class PlayerGeneral : MonoBehaviour
 {
-    [SerializeField] private SpriteRenderer playerModel;
-
+    private SpriteRenderer playerModel;
     private string Username { get; set; }
     public string Id {get; private set; }
     public bool IsHunter {get; private set; }
@@ -25,7 +24,9 @@ public class PlayerGeneral : MonoBehaviour
         Username = username;
         Id = id;
 
-	    Color newColor;
+        playerModel = GetComponentInChildren<SpriteRenderer>();
+
+        Color newColor;
 	    if (ColorUtility.TryParseHtmlString(colorHex, out newColor) && playerModel!=null)
 	    {
             playerModel.color = newColor;
@@ -42,7 +43,7 @@ public class PlayerGeneral : MonoBehaviour
     }
 
    
-    private void Update()
+    public virtual void Update()
     {
         if (!gameStarted)
             return;

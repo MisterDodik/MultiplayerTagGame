@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class OwnerPlayerInput : MonoBehaviour
+public class OwnerPlayerInput : PlayerGeneral
 {
     private float currentRotationTimer = 0;
     public bool GameStarted { get; private set; }
@@ -27,10 +27,11 @@ public class OwnerPlayerInput : MonoBehaviour
     }
 
 
-    private void Update()
+    public override void Update()
     {
-        if (!GameStarted)
-            return;
+        //if (!GameStarted)
+        //    return;
+        base.Update();
 
         if (Input.GetAxisRaw("horizontal") != 0 || Input.GetAxisRaw("vertical") != 0)
         {
@@ -44,6 +45,15 @@ public class OwnerPlayerInput : MonoBehaviour
                 })
             });
 
+        }
+
+        if (IsHunter && Input.GetKeyDown(KeyCode.Space))
+        {
+            EventSystem.Emit(MessageType.SendNetworkMessage, new NetworkMessage
+            {
+                type = MessageType.HunterAttack,
+                payload = (new PositionUpdateClient{})
+            });
         }
     }
     private void UpdatePositionsHandler(object o)

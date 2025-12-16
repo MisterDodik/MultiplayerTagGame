@@ -131,7 +131,7 @@ func (c *Client) WriteMessage() {
 			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				log.Println(err)
 			}
-			log.Println("sent message")
+			//log.Println("sent message")
 
 		default:
 			_ = 0

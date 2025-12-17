@@ -6,6 +6,7 @@ using UnityEngine;
 public class ObstacleManager : MonoBehaviour
 {
     private Stack<GameObject> obstaclePool = new Stack<GameObject>();
+    private Dictionary<Vector2, GameObject> activeObstacles = new Dictionary<Vector2, GameObject>();
     [SerializeField] private Sprite obstacleSprite;
     [SerializeField] private Transform obstacleParent;
     private void Start()
@@ -43,20 +44,36 @@ public class ObstacleManager : MonoBehaviour
                 float scale = item.cellSize / obstacle.GetComponent<SpriteRenderer>().sprite.bounds.size.x;
                 obstacle.transform.localScale = new Vector3(scale, scale, 1);
                 obstacle.transform.localPosition = new Vector2(item.posX, item.posY);
+
+                activeObstacles[obstacle.transform.localPosition] = obstacle;
             }
         });
 
     }
 
-
+    private void RemoveObstacle(object data)
+    {
+        var obstacleData = data as Obstacle;
+        if (obstacleData == null)
+            return;
+        GameObject obstacle;
+        if (activeObstacles.TryGetValue(new Vector2(obstacleData.posX, obstacleData.posY), out obstacle))
+        {
+            UnityMainThreadDispatcher.Instance().Enqueue(() => { 
+                obstacle.SetActive(false);
+            });
+        }
+    }
 
     private void OnEnable()
     {
         EventSystem.Subscribe(MessageType.SpawnObstacle, SpawnObstacle);
+        EventSystem.Subscribe(MessageType.RemoveObstacle, RemoveObstacle);
     }
     private void OnDisable()
     {
         EventSystem.Unsubscribe(MessageType.SpawnObstacle, SpawnObstacle);
+        EventSystem.Unsubscribe(MessageType.RemoveObstacle, RemoveObstacle);
     }
 }
 [System.Serializable]

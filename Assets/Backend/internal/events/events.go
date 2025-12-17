@@ -18,9 +18,10 @@ var (
 
 	ChatroomMsg = "chatroom_msg"
 
-	StartGame     = "start_game"
-	SpawnObstacle = "spawn_grid_obstacle"
-	UpdateColor   = "update_color_from_server"
+	StartGame      = "start_game"
+	SpawnObstacle  = "spawn_grid_obstacle"
+	RemoveObstacle = "remove_grid_obstacle"
+	UpdateColor    = "update_color_from_server"
 
 	UpdatePositionFromClient = "update_position_from_client"
 	UpdatePositionFromServer = "update_position_from_server"

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/rand/v2"
+	"slices"
 	"time"
 
 	"github.com/MisterDodik/MultiplayerGame/internal/events"
@@ -16,20 +17,23 @@ type GameServer struct {
 	Clients   ClientList
 	IsStarted bool
 
-	Grid         [][]GridData
-	GridRows     int
-	GridCols     int
-	GridCellSize float32
-	GridOriginX  float32
-	GridOriginY  float32
+	Grid          [][]GridData
+	GridObstacles []IntPair
+	GridRows      int
+	GridCols      int
+	GridCellSize  float32
+	GridOriginX   float32
+	GridOriginY   float32
 }
 type GameSettings struct {
-	HunterAttackRange float64
+	HunterAttackRange  float64
+	BarricadeSpawnRate time.Duration
 }
 
 func (gs *GameServer) NewGameSettings(hunterAttackRange float64) *GameSettings {
 	return &GameSettings{
-		HunterAttackRange: hunterAttackRange,
+		HunterAttackRange:  hunterAttackRange,
+		BarricadeSpawnRate: time.Second,
 	}
 }
 
@@ -66,26 +70,29 @@ type Obstacle struct {
 	PosY     float32 `json:"posY"`
 }
 type Obstacles []Obstacle
+type IntPair struct {
+	X int
+	Y int
+}
 
 func (gs *GameServer) initObstacles(obstacleCoverage int, c *Client) error {
 	if obstacleCoverage == 0 {
 		obstacleCoverage = 20
 	}
 
-	type IntPair struct {
-		X int
-		Y int
-	}
 	used := make(map[IntPair]struct{})
 	for len(used) < gs.GridCols*gs.GridRows*obstacleCoverage/100 {
-		x := rand.IntN(gs.GridCols)
-		y := rand.IntN(gs.GridRows)
+		x := rand.IntN(gs.GridCols-2) + 1 //excludes edges
+		y := rand.IntN(gs.GridRows-2) + 1
 
-		used[IntPair{X: x, Y: y}] = struct{}{}
+		if gs.checkNeighborObstacles(x, y, 3) {
+			used[IntPair{X: x, Y: y}] = struct{}{}
+		}
 	}
+	gs.GridObstacles = make([]IntPair, 0, len(used))
 	for val := range used {
+		gs.GridObstacles = append(gs.GridObstacles, val)
 		gs.Grid[val.X][val.Y].HasObstacle = true
-		log.Println(val.X, val.Y)
 	}
 
 	obstacles := make(Obstacles, 0, len(used))
@@ -115,7 +122,34 @@ func (gs *GameServer) initObstacles(obstacleCoverage int, c *Client) error {
 
 	return nil
 }
+func (gs *GameServer) removeObstacle(c *Client) error {
+	var obstacle Obstacle
+	randomIndex := rand.IntN(len(gs.GridObstacles))
 
+	x := gs.GridObstacles[randomIndex].X
+	y := gs.GridObstacles[randomIndex].Y
+	if gs.Grid[x][y].HasObstacle {
+		gs.Grid[x][y].HasObstacle = false
+		obstacle = Obstacle{
+			CellSize: gs.GridCellSize,
+			PosX:     gs.Grid[x][y].CenterX,
+			PosY:     gs.Grid[x][y].CenterY,
+		}
+		gs.GridObstacles = slices.Delete(gs.GridObstacles, randomIndex, randomIndex+1)
+	}
+
+	jsonData, err := json.Marshal(obstacle)
+	if err != nil {
+		return err
+	}
+	evt := events.Event{
+		Type:    events.RemoveObstacle,
+		Payload: jsonData,
+	}
+
+	BroadcastMessageToAllClients(c, &evt)
+	return nil
+}
 func (m *Manager) NewGameServer(lobbyName string, gridCols, gridRows int, gridCellSize, gridOriginX, gridOriginY float32) *GameServer {
 	gs := &GameServer{
 		IsStarted: false,
@@ -137,7 +171,7 @@ func (m *Manager) NewGameServer(lobbyName string, gridCols, gridRows int, gridCe
 }
 
 func (gs *GameServer) initializators(c *Client) {
-	if gs.initObstacles(1, c) != nil {
+	if gs.initObstacles(20, c) != nil {
 		log.Println("obstacles didnt spawn correctly")
 	}
 
@@ -149,6 +183,7 @@ func (gs *GameServer) initializators(c *Client) {
 			i := rand.IntN(gs.GridCols)
 			j := rand.IntN(gs.GridRows)
 
+			//if !gs.Grid[i][j].HasObstacle && gs.checkNeighborObstacles(i, j, 3) {
 			if !gs.Grid[i][j].HasObstacle {
 				client.SetPosition(gs.Grid[i][j].CenterX, gs.Grid[i][j].CenterY)
 				log.Println("OVO JE POCETNA POZICIJA:", i, j)
@@ -162,35 +197,47 @@ func (gs *GameServer) initializators(c *Client) {
 }
 func (gs *GameServer) StartGame(c *Client) {
 	log.Println("game loop started")
-	ticker := time.NewTicker(gameTickRate)
-	defer ticker.Stop()
+	mainTicker := time.NewTicker(gameTickRate)
+
+	barricadeTicker := time.NewTicker(gs.Settings.BarricadeSpawnRate)
+	defer func() {
+		mainTicker.Stop()
+		barricadeTicker.Stop()
+	}()
 
 	gs.initializators(c)
-
-	for range ticker.C {
-		if err := gs.updatePlayerPositions(c); err != nil {
-			log.Printf("error sending position update: %v", err)
-		}
-
-		if len(gs.Clients) == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
-			defer func() {
-				gs.IsStarted = false
-			}()
-
-			var c *Client
-			for key := range gs.Clients { //this retrieves the first ie the only client left in the lobby
-				c = key
-				break
+	for range mainTicker.C {
+		select {
+		case <-mainTicker.C:
+			if err := gs.updatePlayerPositions(c); err != nil {
+				log.Printf("error sending position update: %v", err)
 			}
-			if c == nil {
+
+			if len(gs.Clients) == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+				defer func() {
+					gs.IsStarted = false
+				}()
+
+				var c *Client
+				for key := range gs.Clients { //this retrieves the first ie the only client left in the lobby
+					c = key
+					break
+				}
+				if c == nil {
+					return
+				}
+				evt := events.Event{
+					Type:    events.EndGame,
+					Payload: json.RawMessage{},
+				}
+				BroadcastMessageToSingleClient(c, &evt)
 				return
 			}
-			evt := events.Event{
-				Type:    events.EndGame,
-				Payload: json.RawMessage{},
+		case <-barricadeTicker.C:
+			_ = gs.removeObstacle(c)
+			if len(gs.GridObstacles) == 0 {
+				barricadeTicker.Stop()
 			}
-			BroadcastMessageToSingleClient(c, &evt)
-			return
 		}
 	}
 
@@ -225,4 +272,27 @@ func (gs *GameServer) updatePlayerPositions(c *Client) error {
 	BroadcastMessageToAllClients(c, &evt)
 	//log.Println(string(evt.Payload))/
 	return nil
+}
+
+var dirs = [][2]int{{-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}}
+
+func (gs *GameServer) checkNeighborObstacles(x, y, allowed int) bool {
+
+	counter := 0
+	for _, d := range dirs {
+		dx := x + d[0]
+		dy := y + d[1]
+
+		if dx < 0 || dy < 0 || dx >= gs.GridCols || dy >= gs.GridRows {
+			continue
+		}
+		if gs.Grid[dx][dy].HasObstacle {
+			counter++
+			if counter > allowed {
+				return false
+			}
+		}
+	}
+
+	return true
 }

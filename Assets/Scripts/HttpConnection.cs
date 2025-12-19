@@ -14,7 +14,16 @@ public static class HttpConnection
     {
         string jsonData = JsonConvert.SerializeObject(data);
         string response = await SendRequest("POST", url, jsonData);
-        return JsonUtility.FromJson<T>(response);
+        try
+        {
+            return JsonUtility.FromJson<T>(response);
+        }
+        catch
+        {
+            T obj = default(T);
+            response = JsonUtility.ToJson(obj);
+            return JsonUtility.FromJson<T>(response);
+        }
     }
 
     public static async Task PostJson(string url, object payload)
@@ -42,7 +51,7 @@ public static class HttpConnection
         if (www.result != UnityWebRequest.Result.Success)
         {
             Debug.LogError($"HTTP {method} ERROR: {www.error}");
-            throw new Exception(www.error);
+            //throw new Exception(www.error);
         }
         return www.downloadHandler.text;
     }

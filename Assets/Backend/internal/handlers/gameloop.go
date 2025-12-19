@@ -45,10 +45,24 @@ func UpdatePositionHandler(e events.Event, c *network.Client) error {
 }
 
 func calculate_pos(c *network.Client, inputX, inputY float32) {
-	if math.Abs(float64(inputX)) > 0 && math.Abs(float64(inputY)) > 0 {
-		inputX /= math.Sqrt2
-		inputY /= math.Sqrt2
+	length := float32(math.Sqrt(float64(inputX*inputX + inputY*inputY)))
+	if length > 0 {
+		inputX /= length
+		inputY /= length
 	}
+	if inputX > 1 {
+		inputX = 1
+	}
+	if inputX < -1 {
+		inputX = -1
+	}
+	if inputY > 1 {
+		inputY = 1
+	}
+	if inputY < -1 {
+		inputY = -1
+	}
+
 	newPosX := inputX * c.ClientGameData.Speed
 	newPosY := inputY * c.ClientGameData.Speed
 

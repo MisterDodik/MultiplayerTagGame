@@ -70,23 +70,31 @@ public class PlayerLobby : MonoBehaviour
                 players[data.id] = player;
             }
 
-            player.transform.localScale = new Vector3(0.75f, 1f, 1);
-            print("broj igraca: "+players.Count);
-            player.transform.localPosition = positionOrigin + new Vector2(players.Count%4 * 1.5f, - players.Count / 4 * 2);
+            UpdateLobby(data.gameStarted);
         });
     }
-
+    private void UpdateLobby(bool clientInGame)
+    {
+        if (clientInGame)
+            return;
+        int index = 0;
+        foreach(var p in players.Values)
+        {
+            p.transform.localScale = new Vector3(0.75f, 1f, 1);
+            p.transform.localPosition = positionOrigin + new Vector2(index % 4 * 1.5f, -index / 4 * 2);
+            index++;
+        }
+    }
     private void PlayerLeftLobby(object playerInfo)
     {
         LobbyPlayer data = playerInfo as LobbyPlayer;
         if (data == null)
-            return;    
-
+            return;
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
             PlayerGeneral player = players[data.id];
             if (player != null)
             {
-                RemovePlayer(player);
+                RemovePlayer(player, data.gameStarted);
 
                 //if (playerCount == 1)
                 //{
@@ -128,7 +136,8 @@ public class PlayerLobby : MonoBehaviour
             NewInLobby(new LobbyPlayer
             {
                 id = p.Id,
-                
+                gameStarted = false,
+
                 //--not important
                 colorHex = null,
                 username = "",
@@ -137,17 +146,17 @@ public class PlayerLobby : MonoBehaviour
         if(realPlayer != null)
             realPlayer.EndOwnerGame();
     }
-    public void ClearOnLobbyExit(bool deleteAll)
+    public void ClearOnLobbyExit()
     {
         if (realPlayer != null)
             realPlayer.EndOwnerGame();
         foreach(PlayerGeneral p in players.Values.ToList())
         {
-            RemovePlayer(p);
+            RemovePlayer(p, false);
         }
         realPlayer = null;
     }
-    private void RemovePlayer(PlayerGeneral p)
+    private void RemovePlayer(PlayerGeneral p, bool clientInGame)
     {
         p.EndGame();
         p.gameObject.SetActive(false);
@@ -162,6 +171,9 @@ public class PlayerLobby : MonoBehaviour
         }
         players.Remove(p.Id);
         playerCount--;
+
+        UpdateLobby(clientInGame);
+
     }
     private void OnEnable()
     {
@@ -184,4 +196,5 @@ public class LobbyPlayer
     public string username;
     public string id;
 	public string colorHex;
+    public bool gameStarted;
 }

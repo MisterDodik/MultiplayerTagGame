@@ -79,7 +79,7 @@ public class LobbyManager : MonoBehaviour
         UnityMainThreadDispatcher.Instance().Enqueue(() =>
         {
             obstacleManager.RemoveAllObstacles();
-            playerLobbyManager.ClearOnLobbyExit(true);
+            playerLobbyManager.ClearOnLobbyExit();
             seedPanel.SetActive(true);
             lobbyPanel.SetActive(false);
             joinLobbyBtn.enabled = true;

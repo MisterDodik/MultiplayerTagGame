@@ -15,10 +15,20 @@ public class PlayerLobby : MonoBehaviour
     [SerializeField] private GameObject playerPrefab;
     [SerializeField] private Vector2 positionOrigin = new Vector2(0, 2);
     [HideInInspector] public Dictionary<string, PlayerGeneral> players = new();
+    private Stack<GameObject> pooledPlayers = new();
     private OwnerPlayerInput realPlayer;
 
 
     private int playerCount = 0;
+    private void Start()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            GameObject playerOB = Instantiate(playerPrefab, lobbyPlayerParent);
+            pooledPlayers.Push(playerOB);
+            playerOB.SetActive(false);
+        }
+    }
 
     [SerializeField] private Transform mainCamera;
     private void NewInLobby(object playerInfo)
@@ -28,27 +38,41 @@ public class PlayerLobby : MonoBehaviour
             return;
         
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
-            GameObject player = Instantiate(playerPrefab, lobbyPlayerParent);
+            PlayerGeneral player;
+            if (!players.TryGetValue(data.id, out player))
+            {
+                GameObject playerOB;
+                if (pooledPlayers.Count > 0)
+                {
+                    playerOB = pooledPlayers.Pop();
+                    playerOB.SetActive(true);
+                }
+                else
+                {
+                    playerOB = Instantiate(playerPrefab, lobbyPlayerParent);
+                }
+                playerNameTMPro = playerOB.GetComponentInChildren<TextMeshPro>();
+                playerNameTMPro.text = data.username;
+                
+                if (playerCount == 0)
+                {
+                    realPlayer = playerOB.AddComponent<OwnerPlayerInput>();
+                }
+                else
+                {
+                    playerOB.AddComponent<EnemyPlayer>();
+                }
+
+                player = playerOB.GetComponent<PlayerGeneral>();
+                player.InitPlayer(data.username, data.id, playerCount > 1, this, data.colorHex);
+                
+                playerCount++;
+                players[data.id] = player;
+            }
+
             player.transform.localScale = new Vector3(0.75f, 1f, 1);
-            playerNameTMPro = player.GetComponentInChildren<TextMeshPro>();
-
-            playerNameTMPro.text = data.username;
-
-            if (playerCount == 0)
-            {
-                realPlayer = player.AddComponent<OwnerPlayerInput>();
-            }
-            else
-            {
-                player.AddComponent<EnemyPlayer>();
-            }
-
-            player.transform.localPosition = positionOrigin + new Vector2(playerCount%4 * 1.5f, - playerCount/4 * 2);
-            playerCount++;
-
-            PlayerGeneral p = player.GetComponent<PlayerGeneral>();
-            p.InitPlayer(data.username, data.id, playerCount > 1, this, data.colorHex);
-            players[data.id] = p;
+            print("broj igraca: "+players.Count);
+            player.transform.localPosition = positionOrigin + new Vector2(players.Count%4 * 1.5f, - players.Count / 4 * 2);
         });
     }
 
@@ -62,9 +86,7 @@ public class PlayerLobby : MonoBehaviour
             PlayerGeneral player = players[data.id];
             if (player != null)
             {
-                playerCount--;
-                players.Remove(data.id);
-                Destroy(player.gameObject);
+                RemovePlayer(player);
 
                 //if (playerCount == 1)
                 //{
@@ -96,6 +118,50 @@ public class PlayerLobby : MonoBehaviour
             }
             realPlayer.StartGame(this, mainCamera);
         });
+    }
+    public void ReloadLobby()
+    {
+        lobbyUI.SetActive(true);
+        foreach (PlayerGeneral p in players.Values)
+        {
+            p.EndGame();
+            NewInLobby(new LobbyPlayer
+            {
+                id = p.Id,
+                
+                //--not important
+                colorHex = null,
+                username = "",
+            });
+        }
+        if(realPlayer != null)
+            realPlayer.EndOwnerGame();
+    }
+    public void ClearOnLobbyExit(bool deleteAll)
+    {
+        if (realPlayer != null)
+            realPlayer.EndOwnerGame();
+        foreach(PlayerGeneral p in players.Values.ToList())
+        {
+            RemovePlayer(p);
+        }
+        realPlayer = null;
+    }
+    private void RemovePlayer(PlayerGeneral p)
+    {
+        p.EndGame();
+        p.gameObject.SetActive(false);
+        pooledPlayers.Push(p.gameObject);
+        if (p.GetComponent<OwnerPlayerInput>() != null)
+        {
+            Destroy(p.GetComponent<OwnerPlayerInput>());
+        }
+        if (p.GetComponent<EnemyPlayer>() != null)
+        {
+            Destroy(p.GetComponent<EnemyPlayer>());
+        }
+        players.Remove(p.Id);
+        playerCount--;
     }
     private void OnEnable()
     {

@@ -14,13 +14,15 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private TMP_InputField seedInputTMPro;
     [SerializeField] private TMP_InputField usernameInputTMPro;
     [SerializeField] private TextMeshProUGUI lobbyNameTMPro;
-
+    [SerializeField] private PlayerLobby playerLobbyManager;
+    [SerializeField] private ObstacleManager obstacleManager;
+    [SerializeField] private Button joinLobbyBtn;
     private void Start()
     {
         seedPanel.SetActive(true);
         lobbyPanel.SetActive(false);
     }
-    public async void OnJoinClicked()
+    public async void OnJoinClicked(Button button)
     {
         string seedInput = seedInputTMPro.text;
         seedInput = seedInput.Trim();
@@ -40,35 +42,19 @@ public class LobbyManager : MonoBehaviour
             return;
         }
 
-
+        button.enabled = false;
         var result = await HttpConnection.PostRequest<LoginResponse>("localhost:8080/login", new 
         {
             seed = seedInput,
             username = usernameInput,	
         });
-
+        if (result == null)
+        {
+            button.enabled = true;
+            return;
+        } 
         EventSystem.Emit("connect", result);
     }
-    //private int testCount = 0;
-    //private void Update()
-    //{
-    //    if (Input.GetKeyDown(KeyCode.Space))
-    //    {
-    //        test("user"+testCount.ToString());
-    //        testCount++;
-    //    }
-    //}
-
-    //private async void test(string username)
-    //{
-    //    var result = await HttpConnection.PostRequest<LoginResponse>("localhost:8080/login", new
-    //    {
-    //        seed = "123",
-    //        username = username,
-    //    });
-
-    //    EventSystem.Emit("connect", result);
-    //}
     private void LobbyJoinedHandler(object data)
     {
         print("connected to lobby");
@@ -80,13 +66,57 @@ public class LobbyManager : MonoBehaviour
         });
     }
 
+    public void OnLeaveLobbyClicked()
+    {
+        EventSystem.Emit(MessageType.SendNetworkMessage, new NetworkMessage
+        {
+            type = MessageType.CloseConnection,
+            payload = ""
+        });
+    }
+    private void CloseConnectionHandler(object data)
+    {
+        UnityMainThreadDispatcher.Instance().Enqueue(() =>
+        {
+            obstacleManager.RemoveAllObstacles();
+            playerLobbyManager.ClearOnLobbyExit(true);
+            seedPanel.SetActive(true);
+            lobbyPanel.SetActive(false);
+            joinLobbyBtn.enabled = true;
+        });
+    }
+
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            EventSystem.Emit(MessageType.SendNetworkMessage, new NetworkMessage
+            {
+                type = MessageType.ExitToLobby,
+                payload = ""
+            });
+        }
+    }
+    private void LoadLobbyHandler(object o)
+    {
+        UnityMainThreadDispatcher.Instance().Enqueue(() => { 
+            playerLobbyManager.ReloadLobby();
+            obstacleManager.RemoveAllObstacles();
+        });
+    }
     private void OnEnable()
     {
         EventSystem.Subscribe(MessageType.JoinLobby, LobbyJoinedHandler);
+        EventSystem.Subscribe(MessageType.ExitToLobby, LoadLobbyHandler);
+        EventSystem.Subscribe(MessageType.CloseConnection, CloseConnectionHandler);
     }
     private void OnDisable()
     {
         EventSystem.Unsubscribe(MessageType.JoinLobby, LobbyJoinedHandler);
+        EventSystem.Unsubscribe(MessageType.ExitToLobby, LoadLobbyHandler);
+        EventSystem.Unsubscribe(MessageType.CloseConnection, CloseConnectionHandler);
+
     }
 }
 

@@ -88,7 +88,7 @@ func (c *Client) SetPosition(posX, posY float32) {
 
 func (c *Client) ReadMessage() {
 	defer func() {
-		c.Manager.removeClient(c)
+		c.Manager.RemoveClient(c)
 	}()
 	for {
 		_, payload, err := c.Conn.ReadMessage()
@@ -115,7 +115,7 @@ func (c *Client) ReadMessage() {
 
 func (c *Client) WriteMessage() {
 	defer func() {
-		c.Manager.removeClient(c)
+		c.Manager.RemoveClient(c)
 	}()
 
 	//nolint:gosimple

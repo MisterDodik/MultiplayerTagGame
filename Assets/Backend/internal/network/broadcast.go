@@ -14,7 +14,7 @@ func BroadcastMessageToAllClients(c *Client, e *events.Event) {
 		return
 	}
 
-	if e.Type != events.UpdatePositionFromServer {
+	if e.Type != events.UpdatePositionFromServer && e.Type != events.SpawnObstacle {
 		log.Println(string(sendEventJSON))
 	}
 	for client := range c.Lobby.Clients {

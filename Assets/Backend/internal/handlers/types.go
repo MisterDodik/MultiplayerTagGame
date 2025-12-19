@@ -10,6 +10,8 @@ var EventHandlers = map[string]func(events.Event, *network.Client) error{
 	events.DepopulateLobby:          LeftLobbyHandler,
 	events.ChatroomMsg:              ChatMsgFromClientHandler,
 	events.StartGame:                StartGameHandler,
+	events.ExitToLobby:              ExitToLobbyHandler,
+	events.CloseConnection:          CloseConnectionHandler,
 	events.UpdatePositionFromClient: UpdatePositionHandler,
 	events.HunterAttack:             HunterAttackHandler,
 

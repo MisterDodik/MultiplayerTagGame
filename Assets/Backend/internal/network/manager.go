@@ -159,7 +159,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		Payload: json.RawMessage(lbJson),
 	}
 	if err := m.parseEvent(evt, client); err != nil {
-		m.removeClient(client)
+		m.RemoveClient(client)
 	}
 
 }
@@ -173,7 +173,7 @@ func (m *Manager) addClient(lobbyName string, client *Client) {
 	log.Println("new client")
 }
 
-func (m *Manager) removeClient(client *Client) {
+func (m *Manager) RemoveClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -185,6 +185,6 @@ func (m *Manager) removeClient(client *Client) {
 		client.Conn.Close()
 		delete(m.Games[client.LobbyName].Clients, client)
 
-		log.Println("client removed")
+		log.Println("client removed. clients left: ", len(client.Lobby.Clients))
 	}
 }

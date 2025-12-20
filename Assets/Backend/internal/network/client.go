@@ -27,12 +27,14 @@ type Client struct {
 }
 
 type ClientGameData struct {
-	PosX     float32
-	PosY     float32
-	Width    float32
-	Height   float32
-	Speed    float32
-	IsHunter bool
+	PosX         float32
+	PosY         float32
+	Width        float32
+	Height       float32
+	Speed        float32
+	IsHunter     bool
+	Score        int64
+	LastSentTick int
 }
 
 func (c *Client) SetHunter(isHunter bool) {
@@ -49,14 +51,29 @@ func (c *Client) SetHunter(isHunter bool) {
 			[]byte(fmt.Sprintf(`{"id":"%s", "colorHex":"%s", "isHunter": "%v"}`, c.Id, c.Color, c.ClientGameData.IsHunter)),
 		),
 	}
+	if isHunter {
+		c.Lobby.Hunters++
+	}
 	BroadcastMessageToAllClients(c, evt)
+}
+func (c *Client) UpdateScore(amount int) {
+	c.ClientGameData.Score += int64(amount)
+	evt := &events.Event{
+		Type: events.UpdateScore,
+		Payload: json.RawMessage(
+			[]byte(fmt.Sprintf(`{"id":"%s", "score":"%v", "amount":"%v"}`, c.Id, c.ClientGameData.Score, amount)),
+		),
+	}
+	BroadcastMessageToSingleClient(c, evt)
 }
 func (c *Client) NewClientGameData() *ClientGameData {
 	data := &ClientGameData{
-		Width:    .3,
-		Height:   .3,
-		Speed:    .03,
-		IsHunter: false,
+		Width:        .3,
+		Height:       .3,
+		Speed:        .03,
+		IsHunter:     false,
+		Score:        0,
+		LastSentTick: 0,
 	}
 
 	data.PosX = float32(startPositionOriginX) + float32(len(c.Lobby.Clients)%4)*0.5

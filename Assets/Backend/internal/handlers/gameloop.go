@@ -19,15 +19,15 @@ func HunterAttackHandler(e events.Event, c *network.Client) error {
 		return nil
 	}
 	for player := range c.Lobby.Clients {
-		if player == c {
+		if player == c || player.ClientGameData.IsHunter {
 			continue
 		}
-
+		log.Println(c.Lobby.ActivePlayers, c.Lobby.Hunters)
 		if calculateDistance(c, player.ClientGameData.PosX, player.ClientGameData.PosY) < c.Lobby.Settings.HunterAttackRange {
 			player.SetHunter(true)
+			c.UpdateScore(100)
 			return nil
 		}
-		log.Println(calculateDistance(c, player.ClientGameData.PosX, player.ClientGameData.PosY), c.Lobby.Settings.HunterAttackRange)
 	}
 	log.Printf("no players were close enough")
 	return nil

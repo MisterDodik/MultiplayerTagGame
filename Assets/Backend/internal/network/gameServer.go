@@ -1,10 +1,12 @@
 package network
 
 import (
+	"cmp"
 	"encoding/json"
 	"log"
 	"math/rand/v2"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/MisterDodik/MultiplayerGame/internal/events"
@@ -17,6 +19,7 @@ type GameServer struct {
 	Clients       ClientList
 	IsStarted     bool
 	ActivePlayers int
+	Hunters       int
 	TimeStats     *TimeStats
 
 	Grid          [][]GridData
@@ -30,6 +33,7 @@ type GameServer struct {
 type GameSettings struct {
 	HunterAttackRange  float64
 	BarricadeSpawnRate time.Duration
+	ScoreTimer         time.Duration
 }
 type TimeStats struct {
 	StartTime       time.Time
@@ -42,6 +46,7 @@ func (gs *GameServer) NewGameSettings(hunterAttackRange float64) *GameSettings {
 	return &GameSettings{
 		HunterAttackRange:  hunterAttackRange,
 		BarricadeSpawnRate: time.Second,
+		ScoreTimer:         5 * time.Second,
 	}
 }
 
@@ -163,6 +168,7 @@ func (m *Manager) NewGameServer(lobbyName string, gridCols, gridRows int, gridCe
 		IsStarted:     false,
 		Clients:       make(ClientList),
 		ActivePlayers: 0,
+		Hunters:       0,
 		TimeStats:     &TimeStats{},
 		GridCols:      gridCols,
 		GridRows:      gridRows,
@@ -182,6 +188,9 @@ func (m *Manager) NewGameServer(lobbyName string, gridCols, gridRows int, gridCe
 func (gs *GameServer) initializators(c *Client) {
 	for player := range gs.Clients {
 		player.SetHunter(false)
+		player.GameStarted = true
+		player.ClientGameData.Score = 0
+		player.ClientGameData.LastSentTick = 0
 	}
 	if gs.initObstacles(20, c) != nil {
 		log.Println("obstacles didnt spawn correctly")
@@ -191,6 +200,9 @@ func (gs *GameServer) initializators(c *Client) {
 	counter := 0
 	for client := range gs.Clients {
 		client.SetHunter(hunterIndex == counter) //resets previous and sets new isHunter state
+		if hunterIndex == counter {
+			client.UpdateScore(50)
+		}
 		for {
 			i := rand.IntN(gs.GridCols)
 			j := rand.IntN(gs.GridRows)
@@ -212,23 +224,46 @@ func (gs *GameServer) StartGame(c *Client) {
 	log.Println("number of players in the game: ", gs.ActivePlayers)
 	mainTicker := time.NewTicker(gameTickRate)
 
-	startTime := time.Now()
-
+	gs.TimeStats = &TimeStats{
+		StartTime:       time.Now(),
+		EndTime:         time.Now(),
+		Duration:        0,
+		LastPowerupTime: time.Now(),
+	}
 	barricadeTicker := time.NewTicker(gs.Settings.BarricadeSpawnRate)
+	gs.Hunters = 0
+	//scoreTicker := time.NewTicker(gs.Settings.ScoreTimer)
 	defer func() {
 		mainTicker.Stop()
 		barricadeTicker.Stop()
+		//	scoreTicker.Stop()
 	}()
 
 	gs.initializators(c)
-	for range mainTicker.C {
+	for {
 		select {
 		case <-mainTicker.C:
 			if err := gs.updatePlayerPositions(c); err != nil {
 				log.Printf("error sending position update: %v", err)
 			}
 
-			if len(gs.Clients) == 0 || gs.ActivePlayers == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+			elapsed := time.Since(gs.TimeStats.StartTime)
+			scoreTicks := int(elapsed / gs.Settings.ScoreTimer)
+
+			for player := range gs.Clients {
+				if !player.ClientGameData.IsHunter {
+
+					delta := scoreTicks - player.ClientGameData.LastSentTick
+
+					if delta > 0 {
+						player.UpdateScore(delta * 5)
+						player.ClientGameData.LastSentTick = scoreTicks
+					}
+				}
+			}
+
+			if len(gs.Clients) == 0 || gs.ActivePlayers == 0 || gs.Hunters == gs.ActivePlayers { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+				log.Println("evo ovdje te pozivam ", len(gs.Clients), gs.ActivePlayers, gs.Hunters)
 				defer func() {
 					gs.IsStarted = false
 				}()
@@ -237,20 +272,10 @@ func (gs *GameServer) StartGame(c *Client) {
 					return
 				}
 
-				var c *Client
-				for key := range gs.Clients { //this retrieves the first ie the only client left in the lobby
-					c = key
-					break
-				}
-				if c == nil {
-					return
-				}
-				endTime := time.Since(startTime)
-				evt := events.Event{
-					Type:    events.EndGame,
-					Payload: json.RawMessage{},
-				}
-				BroadcastMessageToSingleClient(c, &evt)
+				gs.TimeStats.EndTime = time.Now()
+				gs.TimeStats.Duration = time.Since(gs.TimeStats.StartTime)
+
+				_ = gs.endGameScores(c)
 				return
 			}
 		case <-barricadeTicker.C:
@@ -259,6 +284,7 @@ func (gs *GameServer) StartGame(c *Client) {
 				barricadeTicker.Stop()
 			}
 		}
+
 	}
 
 }
@@ -291,6 +317,42 @@ func (gs *GameServer) updatePlayerPositions(c *Client) error {
 
 	BroadcastMessageToAllClients(c, &evt)
 	//log.Println(string(evt.Payload))/
+	return nil
+}
+
+type PlayerScore struct {
+	Id           string `json:"id"`
+	Username     string `json:"username"`
+	Score        int64  `json:"score"`
+	GameDuration string `json:"gameDuration"`
+}
+type PlayerScores []PlayerScore
+
+func (gs *GameServer) endGameScores(c *Client) error {
+	scores := make(PlayerScores, 0, len(gs.Clients))
+	gameTime := strconv.Itoa(int(gs.TimeStats.Duration.Seconds()))
+
+	for player := range gs.Clients {
+		scores = append(scores, PlayerScore{
+			Id:           player.Id,
+			Username:     player.Username,
+			Score:        player.ClientGameData.Score,
+			GameDuration: gameTime,
+		})
+	}
+	slices.SortFunc(scores, func(a, b PlayerScore) int {
+		return cmp.Compare(b.Score, a.Score)
+	})
+	jsonData, err := json.Marshal(scores)
+	if err != nil {
+		return err
+	}
+	evt := events.Event{
+		Type:    events.EndGameUpdateScore,
+		Payload: jsonData,
+	}
+
+	BroadcastMessageToAllClients(c, &evt)
 	return nil
 }
 

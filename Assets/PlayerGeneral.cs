@@ -2,6 +2,7 @@ using PimDeWitte.UnityMainThreadDispatcher;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
@@ -39,6 +40,7 @@ public abstract class PlayerGeneral : MonoBehaviour
     public void SpawnInGame()
     {
         transform.localScale = new Vector3(0.3f, 0.3f, 1);
+        GetComponentInChildren<TextMeshPro>().rectTransform.localScale = new Vector3(2, 2, 1);
         gameStarted = true;
     }
     public void EndGame()

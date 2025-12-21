@@ -18,6 +18,11 @@ public class PlayerLobby : MonoBehaviour
     private Stack<GameObject> pooledPlayers = new();
     private OwnerPlayerInput realPlayer;
 
+    [SerializeField] private Color defaultUsernameFontColor;
+    [SerializeField] private Color ownerPlayerFontColor;
+
+    [SerializeField] private ScoreManager scoreManager;
+    [SerializeField] private ObstacleManager obstacleManager;
 
     private int playerCount = 0;
     private void Start()
@@ -36,7 +41,6 @@ public class PlayerLobby : MonoBehaviour
         LobbyPlayer data = playerInfo as LobbyPlayer;
         if (data == null)
             return;
-        
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
             PlayerGeneral player;
             if (!players.TryGetValue(data.id, out player))
@@ -53,14 +57,16 @@ public class PlayerLobby : MonoBehaviour
                 }
                 playerNameTMPro = playerOB.GetComponentInChildren<TextMeshPro>();
                 playerNameTMPro.text = data.username;
-                
+
                 if (playerCount == 0)
                 {
                     realPlayer = playerOB.AddComponent<OwnerPlayerInput>();
+                    playerNameTMPro.color = ownerPlayerFontColor;
                 }
                 else
                 {
                     playerOB.AddComponent<EnemyPlayer>();
+                    playerNameTMPro.color = defaultUsernameFontColor;
                 }
 
                 player = playerOB.GetComponent<PlayerGeneral>();
@@ -69,19 +75,21 @@ public class PlayerLobby : MonoBehaviour
                 playerCount++;
                 players[data.id] = player;
             }
-
             UpdateLobby(data.gameStarted);
         });
     }
     private void UpdateLobby(bool clientInGame)
     {
         if (clientInGame)
+        {
             return;
+        }
         int index = 0;
         foreach(var p in players.Values)
         {
             p.transform.localScale = new Vector3(0.75f, 1f, 1);
-            p.transform.localPosition = positionOrigin + new Vector2(index % 4 * 1.5f, -index / 4 * 2);
+            p.GetComponentInChildren<TextMeshPro>().rectTransform.localScale = new Vector3(1, 1, 1);
+            p.transform.localPosition = positionOrigin + new Vector2(index % 4 * 2.5f, -index / 4 * 2);
             index++;
         }
     }
@@ -120,15 +128,19 @@ public class PlayerLobby : MonoBehaviour
     {
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
             lobbyUI.SetActive(false);
+            obstacleManager.RemoveAllObstacles();
             foreach (PlayerGeneral p in players.Values)
             {
                 p.SpawnInGame();
             }
             realPlayer.StartGame(this, mainCamera);
+
+            scoreManager.ShowScoreUI();
         });
     }
     public void ReloadLobby()
     {
+        scoreManager.HideScoreUI();
         lobbyUI.SetActive(true);
         foreach (PlayerGeneral p in players.Values)
         {
@@ -148,6 +160,7 @@ public class PlayerLobby : MonoBehaviour
     }
     public void ClearOnLobbyExit()
     {
+        scoreManager.HideScoreUI();
         if (realPlayer != null)
             realPlayer.EndOwnerGame();
         foreach(PlayerGeneral p in players.Values.ToList())

@@ -70,6 +70,11 @@ func (m *Manager) Login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	if len(payload.Username) > 8 {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("name too long"))
+		return
+	}
 
 	if _, ok := m.Games[payload.Seed]; ok { //otherwise the desired gameserver is empty (non existent)
 		if m.Games[payload.Seed].IsStarted {

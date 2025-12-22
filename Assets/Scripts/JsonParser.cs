@@ -41,6 +41,8 @@ public static class JsonParser
                 return (type, payloadToken.ToObject<ScoreUpdate>());
             case MessageType.EndGameUpdateScore:
                 return (type, JsonConvert.DeserializeObject<List<EndGameScore>>(payloadToken.ToString()));
+            case MessageType.InfoEvent:
+                return (type, payloadToken.ToObject<InfoData>());
             default:
                 return (type, payloadToken.ToString());
         }

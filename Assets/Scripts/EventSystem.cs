@@ -28,6 +28,8 @@ public static class MessageType
     public const string SpawnObstacle = "spawn_grid_obstacle";
     public const string RemoveObstacle = "remove_grid_obstacle";
 
+    public const string InfoEvent = "send_info";
+
     public const string UpdateScore = "update_single_score";
     public const string EndGameUpdateScore = "end_game";
 }

@@ -86,46 +86,46 @@ public class ScoreManager : MonoBehaviour
     }
 
 
-    private void Update()
-    {
-        if (Input.GetKey(KeyCode.RightArrow))
-        {
-            ShowScoreUI();
-        }
-        if (Input.GetKey(KeyCode.UpArrow))
-        {
-            score += 5;
-            EventSystem.Emit(MessageType.UpdateScore, new ScoreUpdate
-            {
-                id = "",
-                score = score,
-                amount = 5
-            });
-        }
+    //private void Update()
+    //{
+    //    if (Input.GetKey(KeyCode.RightArrow))
+    //    {
+    //        ShowScoreUI();
+    //    }
+    //    if (Input.GetKey(KeyCode.UpArrow))
+    //    {
+    //        score += 5;
+    //        EventSystem.Emit(MessageType.UpdateScore, new ScoreUpdate
+    //        {
+    //            id = "",
+    //            score = score,
+    //            amount = 5
+    //        });
+    //    }
 
-        if (Input.GetKey(KeyCode.LeftArrow))
-        {
-            EventSystem.Emit(MessageType.EndGameUpdateScore, new List<EndGameScore>
-            {
-               new EndGameScore{  
-                    username = "prvi",
-                    score = 123,
-                    gameDuration = "199"
-               },
-               new EndGameScore{
-                    username = "drugi",
-                    score = 234,
-                    gameDuration = "199"
-               },
-               new EndGameScore{
-                    username = "treci",
-                    score = 345,
-                    gameDuration = "199"
-               },
-            });
-        }
+    //    if (Input.GetKey(KeyCode.LeftArrow))
+    //    {
+    //        EventSystem.Emit(MessageType.EndGameUpdateScore, new List<EndGameScore>
+    //        {
+    //           new EndGameScore{  
+    //                username = "prvi",
+    //                score = 123,
+    //                gameDuration = "199"
+    //           },
+    //           new EndGameScore{
+    //                username = "drugi",
+    //                score = 234,
+    //                gameDuration = "199"
+    //           },
+    //           new EndGameScore{
+    //                username = "treci",
+    //                score = 345,
+    //                gameDuration = "199"
+    //           },
+    //        });
+    //    }
    
-    }
+    //}
 }
 
 [System.Serializable]

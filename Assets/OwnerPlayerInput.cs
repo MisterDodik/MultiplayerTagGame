@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class OwnerPlayerInput : PlayerGeneral
 {
-    private float currentRotationTimer = 0;
     public bool GameStarted { get; private set; }
 
     private PlayerLobby playerManager;

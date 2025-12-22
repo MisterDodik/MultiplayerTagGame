@@ -9,7 +9,6 @@ using Unity.VisualScripting;
 public class WSClient : MonoBehaviour
 {
     private WebSocket ws;
-
     public void Connect(object data)
     {
         LoginResponse loginResponse = data as LoginResponse;

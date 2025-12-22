@@ -16,9 +16,6 @@ public abstract class PlayerGeneral : MonoBehaviour
     protected bool gameStarted = false;
 
     private Vector2 targetPosition;
-
-    private float rotationSpeed = 5;
-    //private bool isOtherPlayer = false;
     public void InitPlayer(string username, string id, bool _isOtherPlayer, PlayerLobby _playerManager, string colorHex)
     {
         gameStarted = false;
@@ -34,8 +31,6 @@ public abstract class PlayerGeneral : MonoBehaviour
 	    }
 
         targetPosition = transform.localPosition;
-        //playerManager = _playerManager;
-        // isOtherPlayer = _isOtherPlayer;
     }
     public void SpawnInGame()
     {
@@ -57,11 +52,6 @@ public abstract class PlayerGeneral : MonoBehaviour
             targetPosition,
             Time.deltaTime * 10f
         );
-
-        //Vector2 direction = (targetPosition - (Vector2)transform.localPosition).normalized;
-        //Quaternion targetRotation = Quaternion.LookRotation(Vector3.forward, direction);
-        //transform.localRotation = Quaternion.Lerp(transform.localRotation, targetRotation, Time.deltaTime * rotationSpeed);
-       // transform.localRotation = Quaternion.Euler(0, 0, targetRotation.eulerAngles.z);
     }
     public void SetTargetPosition(Vector2 pos)
     {

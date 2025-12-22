@@ -16,10 +16,12 @@ func JoinLobbyHandler(e events.Event, c *network.Client) error {
 		return err
 	}
 	if len(lobbyName) < 1 {
+		network.SendInfo(c, network.ShortLobbyName)
 		return fmt.Errorf("lobby name too short")
 	}
 	for _, r := range lobbyName {
 		if !unicode.IsDigit(r) {
+			network.SendInfo(c, network.MalformedLobbyName)
 			return fmt.Errorf("only numbers are allowed in lobby name, but found %q", r)
 		}
 	}

@@ -12,6 +12,7 @@ func ExitToLobbyHandler(e events.Event, c *network.Client) error {
 	//reset score
 
 	if !c.Lobby.IsStarted {
+		network.SendInfo(c, network.GameNotStarted)
 		return errors.New("the game has not started yet")
 	}
 	log.Println(c.Lobby.ActivePlayers, len(c.Lobby.Clients))

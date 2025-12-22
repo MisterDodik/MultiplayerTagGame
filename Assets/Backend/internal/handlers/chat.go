@@ -24,6 +24,7 @@ func ChatMsgFromClientHandler(e events.Event, c *network.Client) error {
 	}
 
 	if len(clientMsg) < 1 {
+		network.SendInfo(c, network.ShortChatMsg)
 		return fmt.Errorf("message too short")
 	}
 	log.Println(clientMsg)

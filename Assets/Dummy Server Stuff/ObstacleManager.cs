@@ -6,9 +6,11 @@ using UnityEngine;
 public class ObstacleManager : MonoBehaviour
 {
     private Stack<GameObject> obstaclePool = new Stack<GameObject>();
-    private Dictionary<Vector2, GameObject> activeObstacles = new Dictionary<Vector2, GameObject>();
+    [HideInInspector] public Dictionary<Vector2, GameObject> activeObstacles = new Dictionary<Vector2, GameObject>();
     [SerializeField] private Sprite obstacleSprite;
     [SerializeField] private Transform obstacleParent;
+
+    [HideInInspector] public float obstacleSize;
     private void Start()
     {
         for (int i = 0; i < 20; i++)
@@ -36,6 +38,7 @@ public class ObstacleManager : MonoBehaviour
     public void SpawnObstacle(object data)
     {
         var obstacleInfoList = data as List<Obstacle>;
+        obstacleSize = obstacleInfoList[0].cellSize;
         UnityMainThreadDispatcher.Instance().Enqueue(() => {
             foreach (Obstacle item in obstacleInfoList)
             {
@@ -45,7 +48,8 @@ public class ObstacleManager : MonoBehaviour
                 obstacle.transform.localScale = new Vector3(scale, scale, 1);
                 obstacle.transform.localPosition = new Vector2(item.posX, item.posY);
 
-                activeObstacles[obstacle.transform.localPosition] = obstacle;
+                Vector2 key = new Vector2(Mathf.Round(item.posX * 1000f) / 1000f, Mathf.Round(item.posY * 1000f) / 1000f);
+                activeObstacles[key] = obstacle;
             }
         });
 
@@ -57,10 +61,12 @@ public class ObstacleManager : MonoBehaviour
         if (obstacleData == null)
             return;
         GameObject obstacle;
-        if (activeObstacles.TryGetValue(new Vector2(obstacleData.posX, obstacleData.posY), out obstacle))
+        Vector2 key = new Vector2(Mathf.Round(obstacleData.posX * 1000f) / 1000f, Mathf.Round(obstacleData.posY * 1000f) / 1000f);
+        if (activeObstacles.TryGetValue(key, out obstacle))
         {
             UnityMainThreadDispatcher.Instance().Enqueue(() => {
                 obstacle.SetActive(false);
+                activeObstacles.Remove(key);
             });
         }
     }

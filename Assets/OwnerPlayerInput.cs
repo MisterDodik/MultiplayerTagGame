@@ -35,7 +35,7 @@ public class OwnerPlayerInput : PlayerGeneral
 
     private float playerHeight = 0.3f;
     private float playerWidth = 0.3f;
-    private float clientSpeed = 0.03f;
+    private float clientSpeed = 3f;
     private void Awake()
     {
         timeBetweenTicks = 1.0f / SERVER_TICK_RATE;
@@ -67,7 +67,7 @@ public class OwnerPlayerInput : PlayerGeneral
         base.Update();
         if (!GameStarted)
             return;
-        
+       // ClientMovementPrediction(new InputState { input = new Vector2(Input.GetAxisRaw("horizontal"), Input.GetAxisRaw("vertical")) });
         tickTimer += Time.deltaTime;
 
         if (tickTimer >= timeBetweenTicks)
@@ -75,6 +75,8 @@ public class OwnerPlayerInput : PlayerGeneral
             tickTimer -= timeBetweenTicks;
             HandleTick();
             currentTick++;
+            //Debug.Log($"CLIENT tick {currentTick} pos {targetPosition}");
+
         }
 
         if (IsHunter && Input.GetKeyDown(KeyCode.Space))
@@ -84,6 +86,11 @@ public class OwnerPlayerInput : PlayerGeneral
                 type = MessageType.HunterAttack,
                 payload = (new PositionUpdateClient{})
             });
+        }
+
+        if (Input.GetKeyDown(KeyCode.M))
+        {
+            targetPosition = new Vector2(targetPosition.x + 2, targetPosition.y);
         }
     }
 
@@ -115,7 +122,7 @@ public class OwnerPlayerInput : PlayerGeneral
         state.input.x = Mathf.Clamp(state.input.x, -1f, 1f);
         state.input.y = Mathf.Clamp(state.input.y, -1f, 1f);
 
-        Vector2 newPos = state.input * clientSpeed;
+        Vector2 newPos = state.input * clientSpeed * timeBetweenTicks;
         Vector2 tryPos = targetPosition + newPos;
         if (newPos == Vector2.zero)
         {
@@ -162,8 +169,7 @@ public class OwnerPlayerInput : PlayerGeneral
         int bufferTick = serverTick % STATE_BUFFER_SIZE;
         if (Vector2.Distance(stateBuffer[bufferTick].pos, serverPos) < 0.01f)
             return;
-
-        transform.localPosition = serverPos;
+       // transform.localPosition = serverPos;
         targetPosition = serverPos;
         InputState correctedState = stateBuffer[bufferTick];
         correctedState.pos = serverPos;

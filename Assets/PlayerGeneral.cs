@@ -15,7 +15,7 @@ public abstract class PlayerGeneral : MonoBehaviour
 
     protected bool gameStarted = false;
 
-    private Vector2 targetPosition;
+    protected Vector2 targetPosition;
     public void InitPlayer(string username, string id, bool _isOtherPlayer, PlayerLobby _playerManager, string colorHex)
     {
         gameStarted = false;

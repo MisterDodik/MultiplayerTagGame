@@ -22,7 +22,7 @@ public class PlayerLobby : MonoBehaviour
     [SerializeField] private Color ownerPlayerFontColor;
 
     [SerializeField] private ScoreManager scoreManager;
-    [SerializeField] private ObstacleManager obstacleManager;
+    public ObstacleManager obstacleManager;
 
     private int playerCount = 0;
     private void Start()

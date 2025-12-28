@@ -221,7 +221,7 @@ func (gs *GameServer) initializators(c *Client) {
 func (gs *GameServer) StartGame(c *Client) {
 	log.Println("game loop started")
 	log.Println("number of players in the game: ", gs.ActivePlayers)
-	mainTicker := time.NewTicker(gameTickRate)
+	mainTicker := time.NewTicker(GameTickRate)
 
 	gs.TimeStats = &TimeStats{
 		StartTime:       time.Now(),
@@ -262,8 +262,8 @@ func (gs *GameServer) StartGame(c *Client) {
 					}
 				}
 			}
-			if len(gs.Clients) == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
-				//if len(gs.Clients) <= 1 || gs.ActivePlayers <= 1 || gs.ToHunt == 0 || gs.Hunters == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+			// if len(gs.Clients) == 0 { //za testiranje na solo instanceu
+			if len(gs.Clients) <= 1 || gs.ActivePlayers <= 1 || gs.ToHunt == 0 || gs.Hunters == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
 				log.Println(len(gs.Clients), gs.ActivePlayers, gs.ToHunt)
 				defer func() {
 					gs.IsStarted = false

@@ -31,7 +31,7 @@ type Manager struct {
 }
 
 var (
-	gameTickRate         = 50 * time.Millisecond
+	GameTickRate         = 50 * time.Millisecond
 	startPositionOriginX = 4
 	startPositionOriginY = 0
 )

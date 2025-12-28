@@ -71,7 +71,7 @@ func (c *Client) NewClientGameData() *ClientGameData {
 	data := &ClientGameData{
 		Width:        .3,
 		Height:       .3,
-		Speed:        .03,
+		Speed:        3,
 		IsHunter:     false,
 		Score:        0,
 		LastSentTick: 0,

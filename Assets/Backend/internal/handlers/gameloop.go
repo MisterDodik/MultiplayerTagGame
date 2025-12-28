@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"time"
 
 	"github.com/MisterDodik/MultiplayerGame/internal/events"
 	"github.com/MisterDodik/MultiplayerGame/internal/network"
@@ -62,9 +63,8 @@ func calculate_pos(c *network.Client, inputX, inputY float32) {
 	if inputY < -1 {
 		inputY = -1
 	}
-
-	newPosX := inputX * c.ClientGameData.Speed
-	newPosY := inputY * c.ClientGameData.Speed
+	newPosX := inputX * c.ClientGameData.Speed * float32(network.GameTickRate) / float32(time.Second)
+	newPosY := inputY * c.ClientGameData.Speed * float32(network.GameTickRate) / float32(time.Second)
 
 	tryX := c.ClientGameData.PosX + newPosX
 	tryY := c.ClientGameData.PosY + newPosY

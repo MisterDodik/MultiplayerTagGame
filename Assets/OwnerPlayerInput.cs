@@ -1,7 +1,18 @@
-using System.Collections;
+using PimDeWitte.UnityMainThreadDispatcher;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.Playables;
+using UnityEngine.UIElements;
 
+struct InputState
+{
+    public Vector2 input;
+    public Vector2 pos;
+}
 public class OwnerPlayerInput : PlayerGeneral
 {
     public bool GameStarted { get; private set; }
@@ -9,11 +20,33 @@ public class OwnerPlayerInput : PlayerGeneral
     private PlayerLobby playerManager;
 
     private Transform mainCamera;
+
+    private float inputX;
+    private float inputY;
+
+    //client side prediction
+    private const int SERVER_TICK_RATE = 20;
+    private int currentTick = 0;
+    private float tickTimer = 0;
+    private float timeBetweenTicks;
+
+    private const int STATE_BUFFER_SIZE = 1024;
+    private InputState[] stateBuffer = new InputState[STATE_BUFFER_SIZE];
+
+    private float playerHeight = 0.3f;
+    private float playerWidth = 0.3f;
+    private float clientSpeed = 0.03f;
+    private void Awake()
+    {
+        timeBetweenTicks = 1.0f / SERVER_TICK_RATE;
+    }
+
     public void StartGame(PlayerLobby _playerManager, Transform _camera)
     {
         GameStarted = true;
         playerManager = _playerManager;
-        
+
+        currentTick = 0;
         mainCamera = _camera;
         mainCamera.parent = transform;
         mainCamera.localPosition = new Vector3(0, 0, -10);
@@ -31,22 +64,17 @@ public class OwnerPlayerInput : PlayerGeneral
 
     public override void Update()
     {
-        //if (!GameStarted)
-        //    return;
         base.Update();
+        if (!GameStarted)
+            return;
+        
+        tickTimer += Time.deltaTime;
 
-        if (Input.GetAxisRaw("horizontal") != 0 || Input.GetAxisRaw("vertical") != 0)
+        if (tickTimer >= timeBetweenTicks)
         {
-            EventSystem.Emit(MessageType.SendNetworkMessage, new NetworkMessage
-            {
-                type = MessageType.UpdatePositionFromClient,
-                payload = (new PositionUpdateClient
-                {
-                    inputX = Input.GetAxisRaw("horizontal"),
-                    inputY = Input.GetAxisRaw("vertical")
-                })
-            });
-
+            tickTimer -= timeBetweenTicks;
+            HandleTick();
+            currentTick++;
         }
 
         if (IsHunter && Input.GetKeyDown(KeyCode.Space))
@@ -58,12 +86,108 @@ public class OwnerPlayerInput : PlayerGeneral
             });
         }
     }
+
+    private void HandleTick()
+    {
+        int bufferIndex = currentTick % STATE_BUFFER_SIZE;
+        inputX = Input.GetAxisRaw("horizontal");
+        inputY = Input.GetAxisRaw("vertical");
+
+        InputState inputState = new InputState();
+        inputState.input = new Vector2(inputX, inputY);
+
+        stateBuffer[bufferIndex] = ClientMovementPrediction(inputState);
+        EventSystem.Emit(MessageType.SendNetworkMessage, new NetworkMessage
+        {
+            type = MessageType.UpdatePositionFromClient,
+            payload = (new PositionUpdateClient
+            {
+                inputX = inputX,
+                inputY = inputY
+            })
+        });
+    }
+    private InputState ClientMovementPrediction(InputState state)
+    {
+        if (state.input.sqrMagnitude > 0f)
+            state.input.Normalize();
+
+        state.input.x = Mathf.Clamp(state.input.x, -1f, 1f);
+        state.input.y = Mathf.Clamp(state.input.y, -1f, 1f);
+
+        Vector2 newPos = state.input * clientSpeed;
+        Vector2 tryPos = targetPosition + newPos;
+        if (newPos == Vector2.zero)
+        {
+            state.pos = targetPosition;
+            return state;
+        }
+        if (!checkCollision(tryPos.x, tryPos.y))
+        {
+            targetPosition = tryPos;
+        }
+        else if (!checkCollision(tryPos.x, targetPosition.y))
+        {
+            targetPosition = new Vector2(tryPos.x, targetPosition.y);
+        }
+        else if(!checkCollision(targetPosition.x, tryPos.y))
+        {
+            targetPosition = new Vector2(targetPosition.x, tryPos.y);
+        }
+        state.pos = targetPosition;
+        return state;
+    }
+
+    private bool checkCollision(float x, float y)
+    {
+        float cellSize = playerManager.obstacleManager.obstacleSize;
+        foreach (var cell in playerManager.obstacleManager.activeObstacles.Values.ToList())
+        {
+            bool overlapX =
+                cell.transform.localPosition.x + cellSize / 2 >= x - playerWidth /2 && 
+                x + playerWidth/2 >= cell.transform.localPosition.x - cellSize / 2;
+
+            bool overlapY =
+                cell.transform.localPosition.y + cellSize / 2 >= y - playerHeight/2 &&
+                y + playerHeight/2 >= cell.transform.localPosition.y - cellSize / 2;
+
+            if (overlapX && overlapY)
+                return true;
+        }
+
+        return false;
+    }
+    private void ServerReconciliation(Vector2 serverPos, int serverTick)
+    {
+        int bufferTick = serverTick % STATE_BUFFER_SIZE;
+        if (Vector2.Distance(stateBuffer[bufferTick].pos, serverPos) < 0.01f)
+            return;
+
+        transform.localPosition = serverPos;
+        targetPosition = serverPos;
+        InputState correctedState = stateBuffer[bufferTick];
+        correctedState.pos = serverPos;
+        stateBuffer[bufferTick] = correctedState;
+
+        int tickToProcess = serverTick + 1;
+        while (tickToProcess < currentTick)
+        {
+            stateBuffer[tickToProcess % STATE_BUFFER_SIZE] = ClientMovementPrediction(stateBuffer[tickToProcess % STATE_BUFFER_SIZE]);
+
+            tickToProcess++;
+        }
+    }
     private void UpdatePositionsHandler(object o)
     {
-        var playerInfoList = o as List<PositionUpdateServer>;
-        foreach (PositionUpdateServer item in playerInfoList)
+        var playerInfo = o as PositionUpdateServer;
+        foreach (ServerPositions item in playerInfo.serverPositions)
         {
-            playerManager.players[item.id].SetTargetPosition(new Vector2(item.x, item.y));
+            if (playerManager.players[item.id] != this)
+                playerManager.players[item.id].SetTargetPosition(new Vector2(item.x, item.y));
+            else          
+                ServerReconciliation(new Vector2(item.x, item.y), playerInfo.serverTick);
+            
+            
         }
     }
     private void UpdateClientColor(object o)
@@ -78,6 +202,7 @@ public class OwnerPlayerInput : PlayerGeneral
         }
         print("error parsing updateclientcolor data");
     }
+  
     private void OnEnable()
     {
         EventSystem.Subscribe(MessageType.UpdateClientColor, UpdateClientColor);
@@ -95,11 +220,18 @@ public class OwnerPlayerInput : PlayerGeneral
 [System.Serializable]
 public class PositionUpdateServer
 {
+    //public string id;
+    //public float x;
+    //public float y;
+    public int serverTick;
+    public List<ServerPositions> serverPositions;
+}
+public struct ServerPositions
+{
     public string id;
     public float x;
     public float y;
 }
-
 
 [System.Serializable]
 public class PositionUpdateClient

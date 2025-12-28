@@ -22,7 +22,7 @@ type GameServer struct {
 	ToHunt        int
 	Hunters       int
 	TimeStats     *TimeStats
-
+	ServerTick    int
 	Grid          [][]GridData
 	GridObstacles []IntPair
 	GridRows      int
@@ -243,6 +243,7 @@ func (gs *GameServer) StartGame(c *Client) {
 	for {
 		select {
 		case <-mainTicker.C:
+			gs.ServerTick++
 			if err := gs.updatePlayerPositions(c); err != nil {
 				log.Printf("error sending position update: %v", err)
 			}
@@ -261,9 +262,8 @@ func (gs *GameServer) StartGame(c *Client) {
 					}
 				}
 			}
-
-			//if len(gs.Clients) <= 1 || gs.ActivePlayers <= 1 || gs.Hunters == gs.ActivePlayers { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
-			if len(gs.Clients) <= 1 || gs.ActivePlayers <= 1 || gs.ToHunt == 0 || gs.Hunters == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+			if len(gs.Clients) == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
+				//if len(gs.Clients) <= 1 || gs.ActivePlayers <= 1 || gs.ToHunt == 0 || gs.Hunters == 0 { //ovdje mozes vjv staviti i 1, tj ako je samo jedan ostao onda je kraj tj on je pobijedio
 				log.Println(len(gs.Clients), gs.ActivePlayers, gs.ToHunt)
 				defer func() {
 					gs.IsStarted = false
@@ -291,23 +291,31 @@ func (gs *GameServer) StartGame(c *Client) {
 }
 
 type PositionUpdateServer struct {
+	ServerTick int             `json:"serverTick"`
+	Positions  PlayerPositions `json:"serverPositions"`
+}
+type ServerPositions struct {
 	Id   string  `json:"id"`
 	PosX float32 `json:"x"`
 	PosY float32 `json:"y"`
 }
-type PlayerPositions []PositionUpdateServer
+type PlayerPositions []ServerPositions
 
 func (gs *GameServer) updatePlayerPositions(c *Client) error {
 	players := make(PlayerPositions, 0, len(gs.Clients))
 	for player := range gs.Clients {
-		players = append(players, PositionUpdateServer{
+		players = append(players, ServerPositions{
 			Id:   player.Id,
 			PosX: player.ClientGameData.PosX,
 			PosY: player.ClientGameData.PosY,
 		})
 	}
 
-	jsonData, err := json.Marshal(players)
+	data := &PositionUpdateServer{
+		ServerTick: gs.ServerTick,
+		Positions:  players,
+	}
+	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
@@ -315,7 +323,6 @@ func (gs *GameServer) updatePlayerPositions(c *Client) error {
 		Type:    events.UpdatePositionFromServer,
 		Payload: jsonData,
 	}
-
 	BroadcastMessageToAllClients(c, &evt)
 	//log.Println(string(evt.Payload))/
 	return nil
